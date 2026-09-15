@@ -1,143 +1,7 @@
 package main
 
-import "base:runtime"
 import "core:fmt"
 import wl "wayland"
-
-EGLDisplay :: rawptr
-EGLConfig :: rawptr
-EGLSurface :: rawptr
-EGLContext :: rawptr
-
-EGL_FALSE :: i32(0)
-EGL_TRUE :: i32(1)
-
-EGL_NONE :: i32(0x3038)
-EGL_RENDERABLE_TYPE :: i32(0x3040)
-EGL_OPENGL_ES2_BIT :: i32(0x0004)
-EGL_SURFACE_TYPE :: i32(0x3033)
-EGL_WINDOW_BIT :: i32(0x0004)
-EGL_CONTEXT_CLIENT_VERSION :: i32(0x3098)
-
-EGL_OPENGL_ES_API :: u32(0x30A0)
-
-GL_COLOR_BUFFER_BIT :: u32(0x00004000)
-
-foreign import egl_lib "system:libEGL.so.1"
-
-@(default_calling_convention = "c")
-foreign egl_lib {
-	eglGetDisplay :: proc(native_display: rawptr) -> EGLDisplay ---
-	eglInitialize :: proc(display: EGLDisplay, major: ^i32, minor: ^i32) -> i32 ---
-	eglTerminate :: proc(display: EGLDisplay) -> i32 ---
-
-	eglChooseConfig :: proc(display: EGLDisplay, attributes: ^i32, configs: ^EGLConfig, config_size: i32, num_config: ^i32) -> i32 ---
-
-	eglBindAPI :: proc(api: u32) -> i32 ---
-
-	eglCreateContext :: proc(display: EGLDisplay, config: EGLConfig, share_context: EGLContext, attributes: ^i32) -> EGLContext ---
-
-	eglDestroyContext :: proc(display: EGLDisplay, ctx: EGLContext) -> i32 ---
-
-	eglCreateWindowSurface :: proc(display: EGLDisplay, config: EGLConfig, window: rawptr, attributes: ^i32) -> EGLSurface ---
-
-	eglDestroySurface :: proc(display: EGLDisplay, surface: EGLSurface) -> i32 ---
-
-	eglMakeCurrent :: proc(display: EGLDisplay, draw: EGLSurface, read: EGLSurface, ctx: EGLContext) -> i32 ---
-
-	eglSwapBuffers :: proc(display: EGLDisplay, surface: EGLSurface) -> i32 ---
-
-	eglGetError :: proc() -> i32 ---
-
-}
-
-foreign import gles_lib "system:libGLESv2.so.2"
-
-@(default_calling_convention = "c")
-foreign gles_lib {
-	glClearColor :: proc(red: f32, green: f32, blue: f32, alpha: f32) ---
-	glClear :: proc(mask: u32) ---
-}
-
-Layer :: struct {
-	display:       ^wl.display,
-	registry:      ^wl.registry,
-	compositor:    ^wl.compositor,
-	layer_shell:   ^wl.layer_shell_v1,
-	surface:       ^wl.surface,
-	layer_surface: ^wl.layer_surface_v1,
-	egl_window:    ^wl.egl_window,
-	egl_display:   EGLDisplay,
-	egl_config:    EGLConfig,
-	egl_surface:   EGLSurface,
-	egl_context:   EGLContext,
-	configured:    bool,
-	serial:        u32,
-	width:         u32,
-	height:        u32,
-}
-
-registry_global :: proc "cdecl" (
-	data: rawptr,
-	registry: ^wl.registry,
-	name: uint,
-	interface: cstring,
-	version: uint,
-) {
-	layer := cast(^Layer)data
-
-	if string(interface) == "wl_compositor" {
-		layer.compositor = cast(^wl.compositor)wl.registry_bind(
-			registry,
-			name,
-			&wl.compositor_interface,
-			4,
-		)
-	}
-
-	if string(interface) == "zwlr_layer_shell_v1" {
-		layer.layer_shell = cast(^wl.layer_shell_v1)wl.registry_bind(
-			registry,
-			name,
-			&wl.layer_shell_v1_interface,
-			1,
-		)
-	}
-
-}
-
-registry_global_remove :: proc "cdecl" (data: rawptr, registry: ^wl.registry, name: uint) {
-}
-
-layer_surface_configure :: proc "cdecl" (
-	data: rawptr,
-	surface: ^wl.layer_surface_v1,
-	serial: u32,
-	width: u32,
-	height: u32,
-) {
-	context = runtime.default_context()
-
-	layer := cast(^Layer)data
-
-	layer.configured = true
-	layer.serial = serial
-	layer.width = width
-	layer.height = height
-
-	fmt.println("configure:", width, height, "serial:", serial)
-
-}
-
-layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v1) {
-	context = runtime.default_context()
-
-	layer := cast(^Layer)data
-	layer.configured = false
-
-	fmt.println("layer surface closed")
-
-}
 
 main :: proc() {
 	layer := Layer{}
@@ -181,7 +45,7 @@ main :: proc() {
 		layer.layer_shell,
 		layer.surface,
 		nil,
-		.top,
+		.overlay,
 		"oshell",
 	)
 
@@ -197,9 +61,11 @@ main :: proc() {
 
 	wl.layer_surface_v1_add_listener(layer.layer_surface, &layer_surface_listener, &layer)
 
-	wl.layer_surface_v1_set_size(layer.layer_surface, 500, 100)
+	wl.layer_surface_v1_set_size(layer.layer_surface, 1920, 32)
 
-	wl.layer_surface_v1_set_anchor(layer.layer_surface, .top | .left)
+	wl.layer_surface_v1_set_anchor(layer.layer_surface, .bottom | .left | .right)
+
+	wl.layer_surface_v1_set_exclusive_zone(layer.layer_surface, 32)
 
 	wl.layer_surface_v1_set_keyboard_interactivity(layer.layer_surface, .none)
 
