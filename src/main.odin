@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import wl "wayland"
 
@@ -10,6 +11,10 @@ Layer :: struct {
 	layer_shell:   ^wl.layer_shell_v1,
 	surface:       ^wl.surface,
 	layer_surface: ^wl.layer_surface_v1,
+	configured:    bool,
+	serial:        u32,
+	width:         u32,
+	height:        u32,
 }
 
 registry_global :: proc "cdecl" (
@@ -43,6 +48,34 @@ registry_global :: proc "cdecl" (
 registry_global_remove :: proc "cdecl" (data: rawptr, registry: ^wl.registry, name: uint) {
 }
 
+layer_surface_configure :: proc "cdecl" (
+	data: rawptr,
+	surface: ^wl.layer_surface_v1,
+	serial: u32,
+	width: u32,
+	height: u32,
+) {
+	context = runtime.default_context()
+
+	layer := cast(^Layer)data
+
+	layer.configured = true
+	layer.serial = serial
+	layer.width = width
+	layer.height = height
+
+	fmt.println("configure:", width, height, "serial:", serial)
+}
+
+layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v1) {
+	context = runtime.default_context()
+
+	layer := cast(^Layer)data
+	layer.configured = false
+
+	fmt.println("layer surface closed")
+}
+
 main :: proc() {
 	layer := Layer{}
 
@@ -55,12 +88,13 @@ main :: proc() {
 
 	layer.registry = wl.display_get_registry(layer.display)
 
-	listener := wl.registry_listener {
+	registry_listener := wl.registry_listener {
 		global        = registry_global,
 		global_remove = registry_global_remove,
 	}
 
-	wl.registry_add_listener(layer.registry, &listener, &layer)
+	wl.registry_add_listener(layer.registry, &registry_listener, &layer)
+
 	wl.display_roundtrip(layer.display)
 
 	fmt.println("connected")
@@ -93,6 +127,13 @@ main :: proc() {
 		return
 	}
 
+	layer_surface_listener := wl.layer_surface_v1_listener {
+		configure = layer_surface_configure,
+		closed    = layer_surface_closed,
+	}
+
+	wl.layer_surface_v1_add_listener(layer.layer_surface, &layer_surface_listener, &layer)
+
 	wl.layer_surface_v1_set_size(layer.layer_surface, 500, 100)
 
 	wl.layer_surface_v1_set_anchor(layer.layer_surface, .top | .left)
@@ -105,6 +146,14 @@ main :: proc() {
 
 	for {
 		if wl.display_dispatch(layer.display) < 0 {
+			break
+		}
+
+		if layer.configured {
+			wl.layer_surface_v1_ack_configure(layer.layer_surface, layer.serial)
+
+			fmt.println("configured:", layer.width, layer.height)
+
 			break
 		}
 	}
