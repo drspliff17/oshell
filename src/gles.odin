@@ -2,10 +2,107 @@ package main
 
 GL_COLOR_BUFFER_BIT :: u32(0x00004000)
 
+GL_FALSE :: i32(0)
+GL_TRUE :: i32(1)
+
+GL_FLOAT :: u32(0x1406)
+
+GL_TRIANGLES :: u32(0x0004)
+
+GL_ARRAY_BUFFER :: u32(0x8892)
+GL_STATIC_DRAW :: u32(0x88E4)
+
+GL_VERTEX_SHADER :: u32(0x8B31)
+GL_FRAGMENT_SHADER :: u32(0x8B30)
+
+GL_COMPILE_STATUS :: u32(0x8B81)
+GL_LINK_STATUS :: u32(0x8B82)
+
+GL_INFO_LOG_LENGTH :: u32(0x8B84)
+
+GL_BLEND :: u32(0x0BE2)
+
+GL_SRC_ALPHA :: u32(0x0302)
+GL_ONE_MINUS_SRC_ALPHA :: u32(0x0303)
+
+
 foreign import gles_lib "system:libGLESv2.so.2"
 
 @(default_calling_convention = "c")
 foreign gles_lib {
 	glClearColor :: proc(red: f32, green: f32, blue: f32, alpha: f32) ---
+
 	glClear :: proc(mask: u32) ---
+
+
+	// Shader creation / compilation
+
+	glCreateShader :: proc(shader_type: u32) -> u32 ---
+
+	glShaderSource :: proc(shader: u32, count: i32, string: ^cstring, length: ^i32) ---
+
+	glCompileShader :: proc(shader: u32) ---
+
+	glGetShaderiv :: proc(shader: u32, pname: u32, params: ^i32) ---
+
+	glGetShaderInfoLog :: proc(shader: u32, buf_size: i32, length: ^i32, info_log: ^u8) ---
+
+	glDeleteShader :: proc(shader: u32) ---
+
+
+	// Program
+
+	glCreateProgram :: proc() -> u32 ---
+
+	glAttachShader :: proc(program: u32, shader: u32) ---
+
+	glBindAttribLocation :: proc(program: u32, index: u32, name: cstring) ---
+
+	glLinkProgram :: proc(program: u32) ---
+
+	glGetProgramiv :: proc(program: u32, pname: u32, params: ^i32) ---
+
+	glGetProgramInfoLog :: proc(program: u32, buf_size: i32, length: ^i32, info_log: ^u8) ---
+
+	glDeleteProgram :: proc(program: u32) ---
+
+	glUseProgram :: proc(program: u32) ---
+
+
+	// Buffers
+
+	glGenBuffers :: proc(n: i32, buffers: ^u32) ---
+
+	glBindBuffer :: proc(target: u32, buffer: u32) ---
+
+	glBufferData :: proc(target: u32, size: int, data: rawptr, usage: u32) ---
+
+	glDeleteBuffers :: proc(n: i32, buffers: ^u32) ---
+
+
+	// Vertex attributes
+
+	glEnableVertexAttribArray :: proc(index: u32) ---
+
+	glVertexAttribPointer :: proc(index: u32, size: i32, type: u32, normalized: i32, stride: i32, pointer: rawptr) ---
+
+	glDrawArrays :: proc(mode: u32, first: i32, count: i32) ---
+
+
+	// Uniforms
+
+	glGetUniformLocation :: proc(program: u32, name: cstring) -> i32 ---
+
+	glUniform2f :: proc(location: i32, v0: f32, v1: f32) ---
+
+	glUniform4f :: proc(location: i32, v0: f32, v1: f32, v2: f32, v3: f32) ---
+
+
+	// State
+
+	glViewport :: proc(x: i32, y: i32, width: i32, height: i32) ---
+
+	glEnable :: proc(cap: u32) ---
+
+	glBlendFunc :: proc(sf: u32, df: u32) ---
 }
