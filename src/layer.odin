@@ -24,13 +24,16 @@ Layer :: struct {
 	vbo:                      u32,
 	text_program:             u32,
 	text_vbo:                 u32,
-  resolution_location:      i32,
-  color_location:           i32,
+	resolution_location:      i32,
+	color_location:           i32,
 	text_position_location:   i32,
 	text_uv_location:         i32,
 	text_resolution_location: i32,
 	text_color_location:      i32,
 	text_texture_location:    i32,
+	rect_position_location:   i32,
+	rect_size_location:       i32,
+	rect_radius_location:     i32,
 	configured:               bool,
 }
 

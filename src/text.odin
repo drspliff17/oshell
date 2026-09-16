@@ -106,11 +106,3 @@ draw_glyph :: proc(
 
 	return pen_x + f32(glyph.advance.x >> 6)
 }
-
-draw_text :: proc(layer: ^Layer, text: string, x: f32, baseline_y: f32, r, g, b, a: f32) {
-	pen_x := x
-
-	for character in text {
-		pen_x = draw_glyph(layer, layer.font_face, character, pen_x, baseline_y, r, g, b, a)
-	}
-}

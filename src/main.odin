@@ -36,11 +36,17 @@ request_frame :: proc(layer: ^Layer) {
 main :: proc() {
 	layer := Layer{}
 
+	//
+	// Wayland
+	//
+
 	layer.display = wl.display_connect(nil)
+
 	if layer.display == nil {
 		fmt.eprintln("Failed to connect")
 		return
 	}
+
 	defer wl.display_disconnect(layer.display)
 
 	layer.registry = wl.display_get_registry(layer.display)
@@ -123,6 +129,10 @@ main :: proc() {
 
 	if DEBUG do fmt.println("configured:", layer.width, layer.height)
 
+	//
+	// EGL window
+	//
+
 	layer.egl_window = wl.egl_window_create(layer.surface, int(layer.width), int(layer.height))
 
 	if layer.egl_window == nil {
@@ -191,6 +201,10 @@ main :: proc() {
 
 	if DEBUG do fmt.println("EGL config selected")
 
+	//
+	// OpenGL ES context
+	//
+
 	context_attributes := [3]i32{EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE}
 
 	layer.egl_context = eglCreateContext(
@@ -237,7 +251,9 @@ main :: proc() {
 
 	if DEBUG do fmt.println("OpenGL ES context created")
 
+	//
 	// FreeType
+	//
 
 	library: FT_Library
 
@@ -251,6 +267,7 @@ main :: proc() {
 	font_path := "/usr/share/fonts/noto/NotoSans-Regular.ttf"
 
 	font_path_cstr := strings.clone_to_cstring(font_path)
+
 	defer delete(font_path_cstr)
 
 	face: FT_Face
@@ -262,11 +279,6 @@ main :: proc() {
 
 	defer FT_Done_Face(face)
 
-	if FT_Set_Pixel_Sizes(face, 0, 16) != 0 {
-		fmt.eprintln("Failed to set font size")
-		return
-	}
-
 	layer.font_face = face
 
 	if DEBUG do fmt.println("FreeType font loaded")
@@ -275,36 +287,10 @@ main :: proc() {
 	// Rectangle shader
 	//
 
-	vertex_shader_source := `
-attribute vec2 position;
-
-uniform vec2 resolution;
-
-void main() {
-    vec2 zero_to_one = position / resolution;
-    vec2 zero_to_two = zero_to_one * 2.0;
-    vec2 clip_space = zero_to_two - 1.0;
-
-    clip_space.y = -clip_space.y;
-
-    gl_Position = vec4(clip_space, 0.0, 1.0);
-}
-`
-
-	fragment_shader_source := `
-precision mediump float;
-
-uniform vec4 color;
-
-void main() {
-    gl_FragColor = color;
-}
-`
-
-	layer.program = create_program(vertex_shader_source, fragment_shader_source)
+	layer.program = create_program(RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
 
 	if layer.program == 0 {
-		fmt.eprintln("Failed to create shader program")
+		fmt.eprintln("Failed to create rectangle shader program")
 		return
 	}
 
@@ -314,6 +300,12 @@ void main() {
 
 	layer.color_location = glGetUniformLocation(layer.program, "color")
 
+	layer.rect_position_location = glGetUniformLocation(layer.program, "rect_position")
+
+	layer.rect_size_location = glGetUniformLocation(layer.program, "rect_size")
+
+	layer.rect_radius_location = glGetUniformLocation(layer.program, "rect_radius")
+
 	if layer.resolution_location < 0 {
 		fmt.eprintln("Failed to find resolution uniform")
 		return
@@ -321,6 +313,21 @@ void main() {
 
 	if layer.color_location < 0 {
 		fmt.eprintln("Failed to find color uniform")
+		return
+	}
+
+	if layer.rect_position_location < 0 {
+		fmt.eprintln("Failed to find rect_position uniform")
+		return
+	}
+
+	if layer.rect_size_location < 0 {
+		fmt.eprintln("Failed to find rect_size uniform")
+		return
+	}
+
+	if layer.rect_radius_location < 0 {
+		fmt.eprintln("Failed to find rect_radius uniform")
 		return
 	}
 
@@ -342,49 +349,7 @@ void main() {
 	// Text shader
 	//
 
-	text_vertex_shader_source := `
-attribute vec2 position;
-attribute vec2 tex_coord;
-
-uniform vec2 resolution;
-
-varying vec2 v_tex_coord;
-
-void main() {
-    vec2 zero_to_one = position / resolution;
-    vec2 zero_to_two = zero_to_one * 2.0;
-    vec2 clip_space = zero_to_two - 1.0;
-
-    clip_space.y = -clip_space.y;
-
-    gl_Position = vec4(clip_space, 0.0, 1.0);
-
-    v_tex_coord = tex_coord;
-}
-`
-
-	text_fragment_shader_source := `
-precision mediump float;
-
-uniform sampler2D glyph_texture;
-uniform vec4 text_color;
-
-varying vec2 v_tex_coord;
-
-void main() {
-    float coverage = texture2D(
-        glyph_texture,
-        v_tex_coord
-    ).a;
-
-    gl_FragColor = vec4(
-        text_color.rgb,
-        text_color.a * coverage
-    );
-}
-`
-
-	layer.text_program = create_program(text_vertex_shader_source, text_fragment_shader_source)
+	layer.text_program = create_program(TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
 
 	if layer.text_program == 0 {
 		fmt.eprintln("Failed to create text shader program")
@@ -432,9 +397,6 @@ void main() {
 
 	//
 	// Text VBO
-	//
-	// 6 vertices
-	// x, y, u, v = 4 floats each
 	//
 
 	glGenBuffers(1, &layer.text_vbo)

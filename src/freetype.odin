@@ -2,9 +2,14 @@ package main
 
 foreign import freetype_lib "system:libfreetype.so.6"
 
+// FreeType handles
+
 FT_Library :: rawptr
 FT_Face :: rawptr
 FT_GlyphSlot :: rawptr
+
+
+// FreeType scalar types
 
 FT_Error :: i32
 
@@ -20,23 +25,38 @@ FT_UShort :: u16
 FT_Pos :: i64
 FT_Fixed :: i64
 
+
+// Glyph loading flags
+
 FT_LOAD_DEFAULT :: i32(0)
 FT_LOAD_RENDER :: i32(1 << 2)
 
+
 @(default_calling_convention = "c")
 foreign freetype_lib {
+
+	// Library lifecycle
 	FT_Init_FreeType :: proc(alibrary: ^FT_Library) -> FT_Error ---
 
 	FT_Done_FreeType :: proc(library: FT_Library) -> FT_Error ---
 
+
+	// Face lifecycle
 	FT_New_Face :: proc(library: FT_Library, pathname: cstring, face_index: FT_Long, aface: ^FT_Face) -> FT_Error ---
 
 	FT_Done_Face :: proc(face: FT_Face) -> FT_Error ---
 
+
+	// Face sizing
 	FT_Set_Pixel_Sizes :: proc(face: FT_Face, pixel_width: FT_UInt, pixel_height: FT_UInt) -> FT_Error ---
 
+
+	// Glyph loading
 	FT_Load_Char :: proc(face: FT_Face, char_code: FT_ULong, load_flags: i32) -> FT_Error ---
 }
+
+
+// Shared FreeType data structures
 
 FT_Generic :: struct {
 	data:      rawptr,
@@ -55,6 +75,9 @@ FT_Vector :: struct {
 	y: FT_Pos,
 }
 
+
+// Bitmap data
+
 FT_Bitmap :: struct {
 	rows:         u32,
 	width:        u32,
@@ -65,6 +88,17 @@ FT_Bitmap :: struct {
 	palette_mode: u8,
 	palette:      rawptr,
 }
+
+FT_Bitmap_Size :: struct {
+	height: FT_Short,
+	width:  FT_Short,
+	size:   FT_Pos,
+	x_ppem: FT_Pos,
+	y_ppem: FT_Pos,
+}
+
+
+// Glyph metrics and outlines
 
 FT_Glyph_Metrics :: struct {
 	width:        FT_Pos,
@@ -86,60 +120,44 @@ FT_Outline :: struct {
 	flags:      i32,
 }
 
-FT_Bitmap_Size :: struct {
-	height: FT_Short,
-	width:  FT_Short,
-	size:   FT_Pos,
-	x_ppem: FT_Pos,
-	y_ppem: FT_Pos,
-}
+
+// Internal list representation used by FT_FaceRec
 
 FT_ListRec :: struct {
 	head: rawptr,
 	tail: rawptr,
 }
 
+
+// Glyph slot representation
+
 FT_GlyphSlotRec :: struct {
-	// FT_Library
 	library:           rawptr,
-
-	// FT_Face
 	face:              rawptr,
-
-	// FT_GlyphSlot
 	next:              rawptr,
-
-	// FT_UInt
 	glyph_index:       FT_UInt,
 	generic:           FT_Generic,
 	metrics:           FT_Glyph_Metrics,
-
-	// FT_Fixed
 	linearHoriAdvance: FT_Fixed,
 	linearVertAdvance: FT_Fixed,
 	advance:           FT_Vector,
-
-	// FT_Glyph_Format / FT_Tag / FT_UInt32
 	format:            u32,
 	bitmap:            FT_Bitmap,
 	bitmap_left:       FT_Int,
 	bitmap_top:        FT_Int,
 	outline:           FT_Outline,
 	num_subglyphs:     FT_UInt,
-
-	// FT_SubGlyph
 	subglyphs:         rawptr,
 	control_data:      rawptr,
-
-	// C long
 	control_len:       FT_Long,
 	lsb_delta:         FT_Pos,
 	rsb_delta:         FT_Pos,
 	other:             rawptr,
-
-	// FT_Slot_Internal
 	internal:          rawptr,
 }
+
+
+// Face representation
 
 FT_FaceRec :: struct {
 	num_faces:           FT_Long,
@@ -152,8 +170,6 @@ FT_FaceRec :: struct {
 	num_fixed_sizes:     FT_Int,
 	available_sizes:     ^FT_Bitmap_Size,
 	num_charmaps:        FT_Int,
-
-	// FT_CharMap*
 	charmaps:            rawptr,
 	generic:             FT_Generic,
 	bbox:                FT_BBox,
@@ -165,17 +181,9 @@ FT_FaceRec :: struct {
 	max_advance_height:  FT_Short,
 	underline_position:  FT_Short,
 	underline_thickness: FT_Short,
-
-	// FT_GlyphSlot
 	glyph:               ^FT_GlyphSlotRec,
-
-	// FT_Size
 	size:                rawptr,
-
-	// FT_CharMap
 	charmap:             rawptr,
-
-	// Private FreeType fields.
 	driver:              rawptr,
 	memory:              rawptr,
 	stream:              rawptr,
@@ -184,6 +192,9 @@ FT_FaceRec :: struct {
 	extensions:          rawptr,
 	internal:            rawptr,
 }
+
+
+// Application font atlas
 
 Font :: struct {
 	texture: u32,

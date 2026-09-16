@@ -19,7 +19,7 @@ render :: proc(layer: ^Layer) {
 
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * size_of(f32), nil)
 
-	draw_rect(layer, 0, 0, 1920, 32, 0.8, 0.1, 0.9, 1.0)
+	draw_rect(layer, Rect{x = 0, y = 0, width = 1920, height = 1080}, Col{0.9, 0.1, 0.8, 0.5})
 
 	glUseProgram(layer.text_program)
 
@@ -51,16 +51,7 @@ render :: proc(layer: ^Layer) {
 		cast(rawptr)(uintptr(2 * size_of(f32))),
 	)
 
-	draw_text(
-		layer,
-		"hello world",
-		20, // x
-		24, // baseline y
-		1.0, // r
-		1.0, // g
-		1.0, // b
-		1.0, // a
-	)
+	draw_text(layer, "hello world", Vec2{20, 22}, Col{1, 1, 1, 1})
 
 	if eglSwapBuffers(layer.egl_display, layer.egl_surface) == EGL_FALSE {
 		fmt.eprintln("eglSwapBuffers failed")
