@@ -44,23 +44,17 @@ draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
 }
 
 draw_text :: proc(layer: ^Layer, text: string, pos: Vec2, col: Col, size: FT_UInt = 16) {
-	if FT_Set_Pixel_Sizes(layer.font_face, 0, size) != 0 {
-		return
-	}
+	glActiveTexture(GL_TEXTURE0)
+
+	glBindTexture(GL_TEXTURE_2D, layer.font.texture)
+
+	glUniform1i(layer.text_texture_location, 0)
+
+	glUniform4f(layer.text_color_location, col.r, col.g, col.b, col.a)
 
 	pen_x := pos.x
 
 	for character in text {
-		pen_x = draw_glyph(
-			layer,
-			layer.font_face,
-			character,
-			pen_x,
-			pos.y,
-			col.r,
-			col.g,
-			col.b,
-			col.a,
-		)
+		pen_x = draw_glyph(layer, character, size, pen_x, pos.y)
 	}
 }

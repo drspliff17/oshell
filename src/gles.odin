@@ -156,6 +156,7 @@ foreign gles_lib {
 
 	glTexImage2D :: proc(target: u32, level: i32, internal_format: i32, width: i32, height: i32, border: i32, format: u32, typ: u32, pixels: rawptr) ---
 
+	glTexSubImage2D :: proc(target: u32, level: i32, xoffset: i32, yoffset: i32, width: i32, height: i32, format: u32, typ: u32, pixels: rawptr) ---
 
 	// Drawing
 	glDrawArrays :: proc(mode: u32, first: i32, count: i32) ---

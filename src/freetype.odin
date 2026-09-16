@@ -36,22 +36,26 @@ FT_LOAD_RENDER :: i32(1 << 2)
 foreign freetype_lib {
 
 	// Library lifecycle
+
 	FT_Init_FreeType :: proc(alibrary: ^FT_Library) -> FT_Error ---
 
 	FT_Done_FreeType :: proc(library: FT_Library) -> FT_Error ---
 
 
 	// Face lifecycle
+
 	FT_New_Face :: proc(library: FT_Library, pathname: cstring, face_index: FT_Long, aface: ^FT_Face) -> FT_Error ---
 
 	FT_Done_Face :: proc(face: FT_Face) -> FT_Error ---
 
 
 	// Face sizing
+
 	FT_Set_Pixel_Sizes :: proc(face: FT_Face, pixel_width: FT_UInt, pixel_height: FT_UInt) -> FT_Error ---
 
 
 	// Glyph loading
+
 	FT_Load_Char :: proc(face: FT_Face, char_code: FT_ULong, load_flags: i32) -> FT_Error ---
 }
 
@@ -194,14 +198,28 @@ FT_FaceRec :: struct {
 }
 
 
+// Application glyph cache key
+
+Glyph_Key :: struct {
+	character: rune,
+	size:      FT_UInt,
+}
+
+
 // Application font atlas
 
 Font :: struct {
-	texture: u32,
-	width:   int,
-	height:  int,
-	glyphs:  [256]Glyph,
+	texture:    u32,
+	width:      i32,
+	height:     i32,
+	pen_x:      i32,
+	pen_y:      i32,
+	row_height: i32,
+	glyphs:     map[Glyph_Key]Glyph,
 }
+
+
+// Cached glyph information
 
 Glyph :: struct {
 	x:         i32,

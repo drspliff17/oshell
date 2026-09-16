@@ -17,6 +17,7 @@ Layer :: struct {
 	egl_surface:              EGLSurface,
 	egl_context:              EGLContext,
 	font_face:                FT_Face,
+	font:                     Font,
 	serial:                   u32,
 	width:                    u32,
 	height:                   u32,

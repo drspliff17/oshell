@@ -36,9 +36,7 @@ request_frame :: proc(layer: ^Layer) {
 main :: proc() {
 	layer := Layer{}
 
-	//
 	// Wayland
-	//
 
 	layer.display = wl.display_connect(nil)
 
@@ -129,9 +127,7 @@ main :: proc() {
 
 	if DEBUG do fmt.println("configured:", layer.width, layer.height)
 
-	//
 	// EGL window
-	//
 
 	layer.egl_window = wl.egl_window_create(layer.surface, int(layer.width), int(layer.height))
 
@@ -201,9 +197,7 @@ main :: proc() {
 
 	if DEBUG do fmt.println("EGL config selected")
 
-	//
 	// OpenGL ES context
-	//
 
 	context_attributes := [3]i32{EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE}
 
@@ -251,9 +245,7 @@ main :: proc() {
 
 	if DEBUG do fmt.println("OpenGL ES context created")
 
-	//
 	// FreeType
-	//
 
 	library: FT_Library
 
@@ -283,9 +275,51 @@ main :: proc() {
 
 	if DEBUG do fmt.println("FreeType font loaded")
 
-	//
+	// Font atlas
+
+	layer.font.width = 1024
+	layer.font.height = 1024
+
+	layer.font.pen_x = 1
+	layer.font.pen_y = 1
+	layer.font.row_height = 0
+
+	glGenTextures(1, &layer.font.texture)
+
+	defer glDeleteTextures(1, &layer.font.texture)
+
+	glActiveTexture(GL_TEXTURE0)
+
+	glBindTexture(GL_TEXTURE_2D, layer.font.texture)
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+
+	glTexImage2D(
+		GL_TEXTURE_2D,
+		0,
+		i32(GL_ALPHA),
+		layer.font.width,
+		layer.font.height,
+		0,
+		GL_ALPHA,
+		GL_UNSIGNED_BYTE,
+		nil,
+	)
+
+	layer.font.glyphs = make(map[Glyph_Key]Glyph)
+	defer delete(layer.font.glyphs)
+
+	if DEBUG do fmt.println("font atlas created:", layer.font.width, "x", layer.font.height)
+
 	// Rectangle shader
-	//
 
 	layer.program = create_program(RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
 
@@ -333,9 +367,7 @@ main :: proc() {
 
 	if DEBUG do fmt.println("rectangle shader program created")
 
-	//
 	// Rectangle VBO
-	//
 
 	glGenBuffers(1, &layer.vbo)
 
@@ -345,9 +377,7 @@ main :: proc() {
 
 	glBufferData(GL_ARRAY_BUFFER, 12 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
-	//
 	// Text shader
-	//
 
 	layer.text_program = create_program(TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
 
@@ -395,9 +425,7 @@ main :: proc() {
 
 	if DEBUG do fmt.println("text shader program created")
 
-	//
 	// Text VBO
-	//
 
 	glGenBuffers(1, &layer.text_vbo)
 
@@ -407,9 +435,7 @@ main :: proc() {
 
 	glBufferData(GL_ARRAY_BUFFER, 24 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
-	//
 	// Blending
-	//
 
 	glEnable(GL_BLEND)
 
