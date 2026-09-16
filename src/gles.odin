@@ -12,6 +12,8 @@ GL_TRIANGLES :: u32(0x0004)
 GL_ARRAY_BUFFER :: u32(0x8892)
 GL_STATIC_DRAW :: u32(0x88E4)
 
+GL_DYNAMIC_DRAW :: u32(0x88E8)
+
 GL_VERTEX_SHADER :: u32(0x8B31)
 GL_FRAGMENT_SHADER :: u32(0x8B30)
 
@@ -79,6 +81,8 @@ foreign gles_lib {
 
 	glDeleteBuffers :: proc(n: i32, buffers: ^u32) ---
 
+	glBufferSubData :: proc(target: u32, offset: int, size: int, data: rawptr) ---
+
 
 	// Vertex attributes
 
@@ -105,4 +109,5 @@ foreign gles_lib {
 	glEnable :: proc(cap: u32) ---
 
 	glBlendFunc :: proc(sf: u32, df: u32) ---
+
 }
