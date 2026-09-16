@@ -2,6 +2,7 @@ package main
 
 import "base:runtime"
 import "core:fmt"
+import "core:strings"
 import wl "wayland"
 
 DEBUG :: true
@@ -236,6 +237,44 @@ main :: proc() {
 
 	if DEBUG do fmt.println("OpenGL ES context created")
 
+	// FreeType
+
+	library: FT_Library
+
+	if FT_Init_FreeType(&library) != 0 {
+		fmt.eprintln("Failed to initialize FreeType")
+		return
+	}
+
+	defer FT_Done_FreeType(library)
+
+	font_path := "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+
+	font_path_cstr := strings.clone_to_cstring(font_path)
+	defer delete(font_path_cstr)
+
+	face: FT_Face
+
+	if FT_New_Face(library, font_path_cstr, 0, &face) != 0 {
+		fmt.eprintln("Failed to load font")
+		return
+	}
+
+	defer FT_Done_Face(face)
+
+	if FT_Set_Pixel_Sizes(face, 0, 16) != 0 {
+		fmt.eprintln("Failed to set font size")
+		return
+	}
+
+	layer.font_face = face
+
+	if DEBUG do fmt.println("FreeType font loaded")
+
+	//
+	// Rectangle shader
+	//
+
 	vertex_shader_source := `
 attribute vec2 position;
 
@@ -245,6 +284,7 @@ void main() {
     vec2 zero_to_one = position / resolution;
     vec2 zero_to_two = zero_to_one * 2.0;
     vec2 clip_space = zero_to_two - 1.0;
+
     clip_space.y = -clip_space.y;
 
     gl_Position = vec4(clip_space, 0.0, 1.0);
@@ -270,8 +310,6 @@ void main() {
 
 	defer glDeleteProgram(layer.program)
 
-	if DEBUG do fmt.println("shader program created")
-
 	layer.resolution_location = glGetUniformLocation(layer.program, "resolution")
 
 	layer.color_location = glGetUniformLocation(layer.program, "color")
@@ -286,6 +324,12 @@ void main() {
 		return
 	}
 
+	if DEBUG do fmt.println("rectangle shader program created")
+
+	//
+	// Rectangle VBO
+	//
+
 	glGenBuffers(1, &layer.vbo)
 
 	defer glDeleteBuffers(1, &layer.vbo)
@@ -294,8 +338,122 @@ void main() {
 
 	glBufferData(GL_ARRAY_BUFFER, 12 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
+	//
+	// Text shader
+	//
+
+	text_vertex_shader_source := `
+attribute vec2 position;
+attribute vec2 tex_coord;
+
+uniform vec2 resolution;
+
+varying vec2 v_tex_coord;
+
+void main() {
+    vec2 zero_to_one = position / resolution;
+    vec2 zero_to_two = zero_to_one * 2.0;
+    vec2 clip_space = zero_to_two - 1.0;
+
+    clip_space.y = -clip_space.y;
+
+    gl_Position = vec4(clip_space, 0.0, 1.0);
+
+    v_tex_coord = tex_coord;
+}
+`
+
+	text_fragment_shader_source := `
+precision mediump float;
+
+uniform sampler2D glyph_texture;
+uniform vec4 text_color;
+
+varying vec2 v_tex_coord;
+
+void main() {
+    float coverage = texture2D(
+        glyph_texture,
+        v_tex_coord
+    ).a;
+
+    gl_FragColor = vec4(
+        text_color.rgb,
+        text_color.a * coverage
+    );
+}
+`
+
+	layer.text_program = create_program(text_vertex_shader_source, text_fragment_shader_source)
+
+	if layer.text_program == 0 {
+		fmt.eprintln("Failed to create text shader program")
+		return
+	}
+
+	defer glDeleteProgram(layer.text_program)
+
+	layer.text_position_location = glGetAttribLocation(layer.text_program, "position")
+
+	layer.text_uv_location = glGetAttribLocation(layer.text_program, "tex_coord")
+
+	layer.text_resolution_location = glGetUniformLocation(layer.text_program, "resolution")
+
+	layer.text_color_location = glGetUniformLocation(layer.text_program, "text_color")
+
+	layer.text_texture_location = glGetUniformLocation(layer.text_program, "glyph_texture")
+
+	if layer.text_position_location < 0 {
+		fmt.eprintln("Failed to find text position attribute")
+		return
+	}
+
+	if layer.text_uv_location < 0 {
+		fmt.eprintln("Failed to find text tex_coord attribute")
+		return
+	}
+
+	if layer.text_resolution_location < 0 {
+		fmt.eprintln("Failed to find text resolution uniform")
+		return
+	}
+
+	if layer.text_color_location < 0 {
+		fmt.eprintln("Failed to find text color uniform")
+		return
+	}
+
+	if layer.text_texture_location < 0 {
+		fmt.eprintln("Failed to find glyph texture uniform")
+		return
+	}
+
+	if DEBUG do fmt.println("text shader program created")
+
+	//
+	// Text VBO
+	//
+	// 6 vertices
+	// x, y, u, v = 4 floats each
+	//
+
+	glGenBuffers(1, &layer.text_vbo)
+
+	defer glDeleteBuffers(1, &layer.text_vbo)
+
+	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
+
+	glBufferData(GL_ARRAY_BUFFER, 24 * size_of(f32), nil, GL_DYNAMIC_DRAW)
+
+	//
+	// Blending
+	//
+
 	glEnable(GL_BLEND)
+
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+	if DEBUG do fmt.println("renderer initialized")
 
 	request_frame(&layer)
 	render(&layer)

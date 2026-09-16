@@ -1,5 +1,20 @@
 package main
 
+GL_TEXTURE_2D :: u32(0x0DE1)
+GL_TEXTURE0 :: u32(0x84C0)
+
+GL_ALPHA :: u32(0x1906)
+GL_UNSIGNED_BYTE :: u32(0x1401)
+
+GL_TEXTURE_MAG_FILTER :: u32(0x2800)
+GL_TEXTURE_MIN_FILTER :: u32(0x2801)
+GL_TEXTURE_WRAP_S :: u32(0x2802)
+GL_TEXTURE_WRAP_T :: u32(0x2803)
+
+GL_LINEAR :: i32(0x2601)
+GL_CLAMP_TO_EDGE :: i32(0x812F)
+
+GL_UNPACK_ALIGNMENT :: u32(0x0CF5)
 GL_COLOR_BUFFER_BIT :: u32(0x00004000)
 
 GL_FALSE :: i32(0)
@@ -109,5 +124,23 @@ foreign gles_lib {
 	glEnable :: proc(cap: u32) ---
 
 	glBlendFunc :: proc(sf: u32, df: u32) ---
+
+	glGenTextures :: proc(n: i32, textures: ^u32) ---
+
+	glDeleteTextures :: proc(n: i32, textures: ^u32) ---
+
+	glActiveTexture :: proc(texture: u32) ---
+
+	glBindTexture :: proc(target: u32, texture: u32) ---
+
+	glTexParameteri :: proc(target: u32, pname: u32, param: i32) ---
+
+	glPixelStorei :: proc(pname: u32, param: i32) ---
+
+	glTexImage2D :: proc(target: u32, level: i32, internal_format: i32, width: i32, height: i32, border: i32, format: u32, typ: u32, pixels: rawptr) ---
+
+	glUniform1i :: proc(location: i32, v0: i32) ---
+
+	glGetAttribLocation :: proc(program: u32, name: cstring) -> i32 ---
 
 }
