@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import wl "wayland"
 
 render :: proc(layer: ^Layer) {
 	glViewport(0, 0, i32(layer.width), i32(layer.height))
@@ -52,6 +53,16 @@ render :: proc(layer: ^Layer) {
 	)
 
 	draw_text(layer, "hello world", Vec2{20, 22}, Col{1, 1, 1, 1})
+
+	callback := wl.surface_frame(layer.surface)
+
+	if callback == nil {
+		fmt.eprintln("Failed to create frame callback")
+	} else {
+		layer.frame_pending = true
+
+		wl.callback_add_listener(callback, &frame_listener, layer)
+	}
 
 	if eglSwapBuffers(layer.egl_display, layer.egl_surface) == EGL_FALSE {
 		fmt.eprintln("eglSwapBuffers failed")

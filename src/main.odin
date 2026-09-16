@@ -18,19 +18,33 @@ frame_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) {
 
 	wl.callback_destroy(callback)
 
-	request_frame(layer)
-	render(layer)
-}
+	layer.frame_pending = false
 
-request_frame :: proc(layer: ^Layer) {
-	callback := wl.surface_frame(layer.surface)
-
-	if callback == nil {
-		fmt.eprintln("Failed to create frame callback")
+	if !layer.dirty {
 		return
 	}
 
-	wl.callback_add_listener(callback, &frame_listener, layer)
+	layer.dirty = false
+
+	render(layer)
+}
+
+request_redraw :: proc(layer: ^Layer) {
+	layer.dirty = true
+
+	// A frame is already queued with the compositor.
+	// Just remember that another redraw is needed.
+	if layer.frame_pending {
+		return
+	}
+
+	// Nothing is pending, so render immediately.
+	//
+	// render() will request a frame callback before
+	// committing the new buffer.
+	layer.dirty = false
+
+	render(layer)
 }
 
 main :: proc() {
@@ -284,6 +298,10 @@ main :: proc() {
 	layer.font.pen_y = 1
 	layer.font.row_height = 0
 
+	layer.font.glyphs = make(map[Glyph_Key]Glyph)
+
+	defer delete(layer.font.glyphs)
+
 	glGenTextures(1, &layer.font.texture)
 
 	defer glDeleteTextures(1, &layer.font.texture)
@@ -313,9 +331,6 @@ main :: proc() {
 		GL_UNSIGNED_BYTE,
 		nil,
 	)
-
-	layer.font.glyphs = make(map[Glyph_Key]Glyph)
-	defer delete(layer.font.glyphs)
 
 	if DEBUG do fmt.println("font atlas created:", layer.font.width, "x", layer.font.height)
 
@@ -443,8 +458,11 @@ main :: proc() {
 
 	if DEBUG do fmt.println("renderer initialized")
 
-	request_frame(&layer)
-	render(&layer)
+	// Initial frame
+
+	request_redraw(&layer)
+
+	// Event loop
 
 	for {
 		if wl.display_dispatch(layer.display) < 0 {

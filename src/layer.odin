@@ -36,6 +36,8 @@ Layer :: struct {
 	rect_size_location:       i32,
 	rect_radius_location:     i32,
 	configured:               bool,
+	dirty:                    bool,
+	frame_pending:            bool,
 }
 
 registry_global :: proc "cdecl" (
