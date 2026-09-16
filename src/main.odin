@@ -1,57 +1,15 @@
 package main
 
-import "base:runtime"
 import "core:fmt"
 import "core:strings"
 import wl "wayland"
 
 DEBUG :: true
 
-frame_listener := wl.callback_listener {
-	done = frame_done,
-}
-
-frame_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) {
-	context = runtime.default_context()
-
-	layer := cast(^Layer)data
-
-	wl.callback_destroy(callback)
-
-	layer.frame_pending = false
-
-	if !layer.dirty {
-		return
-	}
-
-	layer.dirty = false
-
-	render(layer)
-}
-
-request_redraw :: proc(layer: ^Layer) {
-	layer.dirty = true
-
-	// A frame is already queued with the compositor.
-	// Just remember that another redraw is needed.
-	if layer.frame_pending {
-		return
-	}
-
-	// Nothing is pending, so render immediately.
-	//
-	// render() will request a frame callback before
-	// committing the new buffer.
-	layer.dirty = false
-
-	render(layer)
-}
-
 main :: proc() {
 	layer := Layer{}
 
 	// Wayland
-
 	layer.display = wl.display_connect(nil)
 
 	if layer.display == nil {
@@ -142,7 +100,6 @@ main :: proc() {
 	if DEBUG do fmt.println("configured:", layer.width, layer.height)
 
 	// EGL window
-
 	layer.egl_window = wl.egl_window_create(layer.surface, int(layer.width), int(layer.height))
 
 	if layer.egl_window == nil {
@@ -212,7 +169,6 @@ main :: proc() {
 	if DEBUG do fmt.println("EGL config selected")
 
 	// OpenGL ES context
-
 	context_attributes := [3]i32{EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE}
 
 	layer.egl_context = eglCreateContext(
@@ -260,7 +216,6 @@ main :: proc() {
 	if DEBUG do fmt.println("OpenGL ES context created")
 
 	// FreeType
-
 	library: FT_Library
 
 	if FT_Init_FreeType(&library) != 0 {
@@ -290,7 +245,6 @@ main :: proc() {
 	if DEBUG do fmt.println("FreeType font loaded")
 
 	// Font atlas
-
 	layer.font.width = 1024
 	layer.font.height = 1024
 
@@ -335,7 +289,6 @@ main :: proc() {
 	if DEBUG do fmt.println("font atlas created:", layer.font.width, "x", layer.font.height)
 
 	// Rectangle shader
-
 	layer.program = create_program(RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
 
 	if layer.program == 0 {
@@ -383,7 +336,6 @@ main :: proc() {
 	if DEBUG do fmt.println("rectangle shader program created")
 
 	// Rectangle VBO
-
 	glGenBuffers(1, &layer.vbo)
 
 	defer glDeleteBuffers(1, &layer.vbo)
@@ -393,7 +345,6 @@ main :: proc() {
 	glBufferData(GL_ARRAY_BUFFER, 12 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
 	// Text shader
-
 	layer.text_program = create_program(TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
 
 	if layer.text_program == 0 {
@@ -441,7 +392,6 @@ main :: proc() {
 	if DEBUG do fmt.println("text shader program created")
 
 	// Text VBO
-
 	glGenBuffers(1, &layer.text_vbo)
 
 	defer glDeleteBuffers(1, &layer.text_vbo)
@@ -451,7 +401,6 @@ main :: proc() {
 	glBufferData(GL_ARRAY_BUFFER, 24 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
 	// Blending
-
 	glEnable(GL_BLEND)
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -459,14 +408,8 @@ main :: proc() {
 	if DEBUG do fmt.println("renderer initialized")
 
 	// Initial frame
-
 	request_redraw(&layer)
 
 	// Event loop
-
-	for {
-		if wl.display_dispatch(layer.display) < 0 {
-			break
-		}
-	}
+	run_event_loop(&layer)
 }
