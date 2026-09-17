@@ -16,14 +16,6 @@ frame_done :: proc "c" (data: rawptr, callback: ^wl.callback, frame_time: uint) 
 	wl.callback_destroy(callback)
 
 	layer.frame_pending = false
-
-	if !layer.dirty {
-		return
-	}
-
-	layer.dirty = false
-
-	render(layer)
 }
 
 milliseconds_until_next_minute :: proc() -> i32 {

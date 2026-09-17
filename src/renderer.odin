@@ -4,15 +4,8 @@ import "core:fmt"
 import wl "wayland"
 
 request_redraw :: proc(layer: ^Layer) {
-	layer.dirty = true
-
-	if layer.frame_pending do return
-
-	layer.dirty = false
-
 	render(layer)
 }
-
 
 render :: proc(layer: ^Layer) {
 	glViewport(0, 0, i32(layer.width), i32(layer.height))
@@ -41,11 +34,12 @@ render :: proc(layer: ^Layer) {
 		padding = Padding{top = 4, bottom = 4},
 	}
 
-	draw_rect(layer, bar_rect, Col{0.9, 0.1, 0.8, 0.5})
+	draw_rect(layer, bar_rect, PYWAL_COLOURS.Background)
 
 	bar_content := rect_content(bar_rect)
 
 	// Text renderer
+
 	glUseProgram(layer.text_program)
 
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
@@ -57,6 +51,7 @@ render :: proc(layer: ^Layer) {
 	glEnableVertexAttribArray(u32(layer.text_uv_location))
 
 	// x, y
+
 	glVertexAttribPointer(
 		u32(layer.text_position_location),
 		2,
@@ -67,6 +62,7 @@ render :: proc(layer: ^Layer) {
 	)
 
 	// u, v
+
 	glVertexAttribPointer(
 		u32(layer.text_uv_location),
 		2,
@@ -77,33 +73,38 @@ render :: proc(layer: ^Layer) {
 	)
 
 	// Clock
+
 	draw_clock(
 		layer,
 		Clock_Widget {
 			rect = {
-				x = 5,
+				x = 6,
 				y = bar_content.y,
-				width = 70,
+				width = 60,
 				height = bar_content.height,
-				radius = 30,
-				border_col = {1, 1, 1, 1},
+				radius = 60,
+				padding = {top = 5, bottom = 5},
+				border_col = PYWAL_COLOURS.Color4,
 				border_size = 1,
 			},
-			bg_col = {0, 0, 0, 1},
+			bg_col = PYWAL_COLOURS.Color1,
 			text_col = {1, 1, 1, 1},
-			size = 16,
+			size = 14,
 		},
 	)
 
-	// Frame callback
-	callback := wl.surface_frame(layer.surface)
+	// Keep one compositor frame callback available.
+	// Normal redraws do not wait for it.
+	if !layer.frame_pending {
+		callback := wl.surface_frame(layer.surface)
 
-	if callback == nil {
-		fmt.eprintln("Failed to create frame callback")
-	} else {
-		layer.frame_pending = true
+		if callback == nil {
+			fmt.eprintln("Failed to create frame callback")
+		} else {
+			layer.frame_pending = true
 
-		wl.callback_add_listener(callback, &frame_listener, layer)
+			wl.callback_add_listener(callback, &frame_listener, layer)
+		}
 	}
 
 	// Present

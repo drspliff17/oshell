@@ -1,12 +1,42 @@
 package main
 
 import "core:fmt"
+import "core:mem"
 import "core:strings"
 import wl "wayland"
 
 DEBUG :: true
 
 main :: proc() {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	context.allocator = mem.tracking_allocator(&track)
+
+	defer {
+		if len(track.allocation_map) > 0 {
+			fmt.eprintf("%v allocations not feed:\n", len(track.allocation_map))
+			for _, entry in track.allocation_map {
+				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
+			}
+		} else {
+			fmt.println("TEST: No unfreed allocations")
+		}
+
+		if len(track.bad_free_array) > 0 {
+			fmt.eprintf("%v incorrect free:\n", len(track.bad_free_array))
+			for entry in track.bad_free_array {
+				fmt.eprintf("- %v bytes @ %v\n", entry.memory, entry.location)
+			}
+		} else {
+			fmt.println("TEST: No bad free")
+		}
+
+		mem.tracking_allocator_destroy(&track)
+	}
+
+	setup_signals()
+	GetPywalColours(PYWAL_PATH)
+
 	layer := Layer{}
 
 	// Wayland
@@ -73,7 +103,7 @@ main :: proc() {
 
 	wl.layer_surface_v1_add_listener(layer.layer_surface, &layer_surface_listener, &layer)
 
-	wl.layer_surface_v1_set_size(layer.layer_surface, 1920, 32)
+	wl.layer_surface_v1_set_size(layer.layer_surface, 1920, 28)
 
 	wl.layer_surface_v1_set_anchor(layer.layer_surface, .bottom | .left | .right)
 
@@ -225,7 +255,7 @@ main :: proc() {
 
 	defer FT_Done_FreeType(library)
 
-	font_path := "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+	font_path := "/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf"
 
 	font_path_cstr := strings.clone_to_cstring(font_path)
 
@@ -400,7 +430,6 @@ main :: proc() {
 
 	glBufferData(GL_ARRAY_BUFFER, 24 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
-	// Blending
 	glEnable(GL_BLEND)
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
