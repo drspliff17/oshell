@@ -57,7 +57,6 @@ main :: proc() {
 	}
 
 	wl.registry_add_listener(layer.registry, &registry_listener, &layer)
-
 	wl.display_roundtrip(layer.display)
 
 	if DEBUG do fmt.println("connected")
@@ -104,11 +103,8 @@ main :: proc() {
 	wl.layer_surface_v1_add_listener(layer.layer_surface, &layer_surface_listener, &layer)
 
 	wl.layer_surface_v1_set_size(layer.layer_surface, 1920, 28)
-
 	wl.layer_surface_v1_set_anchor(layer.layer_surface, .bottom | .left | .right)
-
 	wl.layer_surface_v1_set_exclusive_zone(layer.layer_surface, 32)
-
 	wl.layer_surface_v1_set_keyboard_interactivity(layer.layer_surface, .none)
 
 	wl.surface_commit(layer.surface)
@@ -116,13 +112,8 @@ main :: proc() {
 	if DEBUG do fmt.println("layer surface created")
 
 	for {
-		if wl.display_dispatch(layer.display) < 0 {
-			return
-		}
-
-		if layer.configured {
-			break
-		}
+		if wl.display_dispatch(layer.display) < 0 do return
+		if layer.configured do break
 	}
 
 	wl.layer_surface_v1_ack_configure(layer.layer_surface, layer.serial)
@@ -247,18 +238,14 @@ main :: proc() {
 
 	// FreeType
 	library: FT_Library
-
 	if FT_Init_FreeType(&library) != 0 {
 		fmt.eprintln("Failed to initialize FreeType")
 		return
 	}
-
 	defer FT_Done_FreeType(library)
 
 	font_path := "/usr/share/fonts/TTF/JetBrainsMono-Regular.ttf"
-
 	font_path_cstr := strings.clone_to_cstring(font_path)
-
 	defer delete(font_path_cstr)
 
 	face: FT_Face
@@ -283,25 +270,20 @@ main :: proc() {
 	layer.font.row_height = 0
 
 	layer.font.glyphs = make(map[Glyph_Key]Glyph)
-
 	defer delete(layer.font.glyphs)
 
 	glGenTextures(1, &layer.font.texture)
-
 	defer glDeleteTextures(1, &layer.font.texture)
 
 	glActiveTexture(GL_TEXTURE0)
-
 	glBindTexture(GL_TEXTURE_2D, layer.font.texture)
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
 
 	glTexImage2D(
@@ -336,13 +318,9 @@ main :: proc() {
 	defer glDeleteProgram(layer.program)
 
 	layer.resolution_location = glGetUniformLocation(layer.program, "resolution")
-
 	layer.color_location = glGetUniformLocation(layer.program, "color")
-
 	layer.rect_position_location = glGetUniformLocation(layer.program, "rect_position")
-
 	layer.rect_size_location = glGetUniformLocation(layer.program, "rect_size")
-
 	layer.rect_radius_location = glGetUniformLocation(layer.program, "rect_radius")
 
 	if layer.resolution_location < 0 {
@@ -378,7 +356,6 @@ main :: proc() {
 	defer glDeleteBuffers(1, &layer.vbo)
 
 	glBindBuffer(GL_ARRAY_BUFFER, layer.vbo)
-
 	glBufferData(GL_ARRAY_BUFFER, 12 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
 	// Text shader
@@ -392,13 +369,10 @@ main :: proc() {
 	defer glDeleteProgram(layer.text_program)
 
 	layer.text_position_location = glGetAttribLocation(layer.text_program, "position")
-
 	layer.text_uv_location = glGetAttribLocation(layer.text_program, "tex_coord")
 
 	layer.text_resolution_location = glGetUniformLocation(layer.text_program, "resolution")
-
 	layer.text_color_location = glGetUniformLocation(layer.text_program, "text_color")
-
 	layer.text_texture_location = glGetUniformLocation(layer.text_program, "glyph_texture")
 
 	if layer.text_position_location < 0 {
@@ -434,11 +408,9 @@ main :: proc() {
 	defer glDeleteBuffers(1, &layer.text_vbo)
 
 	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
-
 	glBufferData(GL_ARRAY_BUFFER, 24 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
 	glEnable(GL_BLEND)
-
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
 	if DEBUG do fmt.println("renderer initialized")
