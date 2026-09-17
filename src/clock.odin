@@ -31,9 +31,11 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 
 	glBindBuffer(GL_ARRAY_BUFFER, layer.vbo)
 
-	glEnableVertexAttribArray(0)
+	position_location := u32(layer.rect_vertex_position_location)
 
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * size_of(f32), nil)
+	glEnableVertexAttribArray(position_location)
+
+	glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 2 * size_of(f32), nil)
 
 	draw_rect(layer, rect, clock.bg_col)
 

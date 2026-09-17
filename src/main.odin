@@ -37,9 +37,9 @@ main :: proc() {
 	setup_signals()
 	GetPywalColours(PYWAL_PATH)
 
+	// Wayland
 	layer := Layer{}
 
-	// Wayland
 	layer.display = wl.display_connect(nil)
 
 	if layer.display == nil {
@@ -320,6 +320,13 @@ main :: proc() {
 
 	// Rectangle shader
 	layer.program = create_program(RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
+
+	layer.rect_vertex_position_location = glGetAttribLocation(layer.program, "position")
+
+	if layer.rect_vertex_position_location < 0 {
+		fmt.eprintln("Failed to find rectangle position attribute")
+		return
+	}
 
 	if layer.program == 0 {
 		fmt.eprintln("Failed to create rectangle shader program")

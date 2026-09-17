@@ -67,8 +67,8 @@ GetPywalColours :: proc(path: string) {
 
 		if i < 16 {
 			c := rgb_to_col(r, g, b)
-			a: f32 = i == 0 ? 0.96 : 1
-			colours[i] = Col{c.r, c.g, c.b, a}
+			// a: f32 = i == 0 ? 0.96 : 1
+			colours[i] = Col{c.r, c.g, c.b, 0.96}
 			i += 1
 		}
 
