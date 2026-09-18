@@ -11,7 +11,7 @@ run_app :: proc() {
 	defer tracking_destroy(&track)
 
 	setup_signals()
-	UpdateColours()
+	update_colours()
 
 	app := App{}
 	context.user_ptr = &app

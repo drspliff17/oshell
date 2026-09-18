@@ -7,7 +7,7 @@ import wl "wayland"
 
 process_updates :: proc(app: ^App) {
 	if g_reload_colours {
-		UpdateColours()
+		update_colours()
 		g_reload_colours = false
 		request_redraw_all(app)
 	}

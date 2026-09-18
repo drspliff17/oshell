@@ -75,13 +75,14 @@ rect_content :: proc(rect: Rect) -> Rect {
 	}
 }
 
-draw_rect_raw :: proc(layer: ^Layer, rect: Rect, col: Col) {
-	if rect.width <= 0 || rect.height <= 0 {
-		return
-	}
+draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
+	if rect.width <= 0 || rect.height <= 0 do return
 
-	rad := min(rect.radius, min(rect.width, rect.height) * 0.5)
+	radius := min(max(rect.radius, 0), min(rect.width, rect.height) * 0.5)
+	border_size := min(max(rect.border_size, 0), min(rect.width, rect.height) * 0.5)
+	border_col := rect.border_col
 
+	if border_size <= 0 do border_col = col
 	vertices := [12]f32 {
 		rect.x,
 		rect.y,
@@ -100,34 +101,20 @@ draw_rect_raw :: proc(layer: ^Layer, rect: Rect, col: Col) {
 	glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(vertices), &vertices[0])
 
 	glUniform2f(layer.rect_position_location, rect.x, rect.y)
-
 	glUniform2f(layer.rect_size_location, rect.width, rect.height)
-
-	glUniform1f(layer.rect_radius_location, rad)
-
+	glUniform1f(layer.rect_radius_location, radius)
+	glUniform1f(layer.border_size_location, border_size)
 	glUniform4f(layer.color_location, col.r, col.g, col.b, col.a)
 
+	glUniform4f(
+		layer.border_color_location,
+		border_col.r,
+		border_col.g,
+		border_col.b,
+		border_col.a,
+	)
+
 	glDrawArrays(GL_TRIANGLES, 0, 6)
-}
-
-draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
-	border_size := max(rect.border_size, 0)
-
-	if border_size > 0 {
-		draw_rect_raw(layer, rect, rect.border_col)
-
-		inner := Rect {
-			x      = rect.x + border_size,
-			y      = rect.y + border_size,
-			width  = rect.width - border_size * 2,
-			height = rect.height - border_size * 2,
-			radius = max(0, rect.radius - border_size),
-		}
-		draw_rect_raw(layer, inner, col)
-		return
-	}
-
-	draw_rect_raw(layer, rect, col)
 }
 
 draw_text :: proc(layer: ^Layer, text: string, pos: Vec2, col: Col, size: FT_UInt = 16) {

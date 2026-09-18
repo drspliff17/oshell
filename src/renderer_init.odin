@@ -64,6 +64,9 @@ app_init_renderer :: proc(app: ^App) -> bool {
 	app.rect_position_location = glGetUniformLocation(app.program, "rect_position")
 	app.rect_size_location = glGetUniformLocation(app.program, "rect_size")
 	app.rect_radius_location = glGetUniformLocation(app.program, "rect_radius")
+	app.border_color_location = glGetUniformLocation(app.program, "border_color")
+	app.border_size_location = glGetUniformLocation(app.program, "border_size")
+
 
 	if app.rect_vertex_position_location < 0 {
 		fmt.eprintln("Failed to find rectangle position attribute")
@@ -97,6 +100,18 @@ app_init_renderer :: proc(app: ^App) -> bool {
 
 	if app.rect_radius_location < 0 {
 		fmt.eprintln("Failed to find rect_radius uniform")
+		app_destroy_renderer(app)
+		return false
+	}
+
+	if app.border_color_location < 0 {
+		fmt.eprintln("Failed to find border_color uniform")
+		app_destroy_renderer(app)
+		return false
+	}
+
+	if app.border_size_location < 0 {
+		fmt.eprintln("Failed to find border_size uniform")
 		app_destroy_renderer(app)
 		return false
 	}

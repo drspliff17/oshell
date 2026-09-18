@@ -30,33 +30,88 @@ RECT_FRAGMENT_SHADER :: `
 precision mediump float;
 
 uniform vec4 color;
+uniform vec4 border_color;
 
 uniform vec2 rect_size;
 uniform float rect_radius;
+uniform float border_size;
 
 varying vec2 local_position;
 
-void main() {
-    vec2 half_size = rect_size * 0.5;
-
-    vec2 p = local_position - half_size;
-
+float rounded_rect_distance(
+    vec2 p,
+    vec2 half_size,
+    float radius
+) {
     vec2 q =
         abs(p) -
         half_size +
-        vec2(rect_radius);
+        vec2(radius);
 
-    float distance =
+    return
         length(max(q, 0.0)) +
         min(max(q.x, q.y), 0.0) -
-        rect_radius;
+        radius;
+}
 
-    float alpha =
-        1.0 - smoothstep(0.0, 1.0, distance);
+void main() {
+    vec2 half_size = rect_size * 0.5;
+    vec2 p = local_position - half_size;
+
+    // Outer rectangle
+
+    float outer_distance = rounded_rect_distance(
+        p,
+        half_size,
+        rect_radius
+    );
+
+    float outer_alpha =
+        1.0 - smoothstep(
+            0.0,
+            1.0,
+            outer_distance
+        );
+
+    // Inner rectangle
+
+    float inset = max(border_size, 0.0);
+
+    vec2 inner_half_size =
+        max(
+            half_size - vec2(inset),
+            vec2(0.0)
+        );
+
+    float inner_radius =
+        max(
+            rect_radius - inset,
+            0.0
+        );
+
+    float inner_distance = rounded_rect_distance(
+        p,
+        inner_half_size,
+        inner_radius
+    );
+
+    float inner_alpha =
+        1.0 - smoothstep(
+            0.0,
+            1.0,
+            inner_distance
+        );
+
+    vec4 result =
+        mix(
+            border_color,
+            color,
+            inner_alpha
+        );
 
     gl_FragColor = vec4(
-        color.rgb,
-        color.a * alpha
+        result.rgb,
+        result.a * outer_alpha
     );
 }
 `

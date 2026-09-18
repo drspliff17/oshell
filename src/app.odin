@@ -36,9 +36,11 @@ App :: struct {
 	vbo:                           u32,
 	resolution_location:           i32,
 	color_location:                i32,
+	border_color_location:         i32,
 	rect_position_location:        i32,
 	rect_size_location:            i32,
 	rect_radius_location:          i32,
+	border_size_location:          i32,
 	rect_vertex_position_location: i32,
 
 	// Text renderer
@@ -53,11 +55,13 @@ App :: struct {
 	// Output configuration
 	output_mode:                   OUTPUT_MODES,
 
-	//
+	// Lifecycle
 	exit_requested:                bool,
 }
 
-get_app :: proc() -> ^App {return cast(^App)context.user_ptr}
+get_app :: proc() -> ^App {
+	return cast(^App)context.user_ptr
+}
 
 app_preferred_output :: proc(app: ^App) -> ^wl.output {
 	if app.hdmi_output != nil do return app.hdmi_output
@@ -66,8 +70,10 @@ app_preferred_output :: proc(app: ^App) -> ^wl.output {
 
 app_inverted_output :: proc(app: ^App) -> ^wl.output {
 	preferred := app_preferred_output(app)
+
 	if preferred == app.hdmi_output && app.edp_output != nil do return app.edp_output
 	if preferred == app.edp_output && app.hdmi_output != nil do return app.hdmi_output
+
 	return preferred
 }
 
@@ -88,6 +94,7 @@ app_create_layer :: proc(app: ^App, output: ^wl.output) -> ^Layer {
 	}
 
 	append(&app.layers, layer)
+
 	return layer
 }
 
@@ -95,8 +102,10 @@ app_destroy_layer :: proc(app: ^App, index: int) {
 	if index < 0 || index >= len(app.layers) do return
 
 	layer := app.layers[index]
+
 	layer_destroy_surface(layer)
 	free(layer)
+
 	ordered_remove(&app.layers, index)
 }
 
@@ -112,6 +121,7 @@ request_redraw_all :: proc(app: ^App) {
 	for layer in app.layers {
 		if !layer.configured do continue
 		if layer.egl_surface == nil do continue
+
 		request_redraw(layer)
 	}
 }
@@ -120,15 +130,18 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 	if len(app.layers) == 0 do return false
 
 	primary := app.layers[0]
+
 	switch mode {
 	case .Preferred:
 		output := app_preferred_output(app)
 		if output == nil do return false
 
 		app_destroy_extra_layers(app)
+
 		if !layer_set_output(primary, output) do return false
 
 		app.output_mode = .Preferred
+
 		request_redraw(primary)
 
 		return true
@@ -140,9 +153,11 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 		app_destroy_extra_layers(app)
 
 		if !layer_set_output(primary, output) do return false
+
 		app.output_mode = .Inverted
 
 		request_redraw(primary)
+
 		return true
 
 	case .All:
@@ -150,6 +165,7 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 		if primary_output == nil do return false
 
 		if !layer_set_output(primary, primary_output) do return false
+
 		second_output: ^wl.output
 
 		if primary_output == app.hdmi_output {
@@ -160,10 +176,12 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 
 		if second_output != nil && app_find_layer(app, second_output) == nil {
 			secondary := app_create_layer(app, second_output)
+
 			if secondary == nil do return false
 		}
 
 		app.output_mode = .All
+
 		request_redraw_all(app)
 
 		return true
@@ -258,14 +276,18 @@ app_init_egl :: proc(app: ^App) -> bool {
 
 app_destroy_egl :: proc(app: ^App) {
 	if app.egl_display == nil do return
+
 	eglMakeCurrent(app.egl_display, nil, nil, nil)
+
 	app.current_layer = nil
 
 	if app.egl_context != nil {
 		eglDestroyContext(app.egl_display, app.egl_context)
+
 		app.egl_context = nil
 	}
 
 	eglTerminate(app.egl_display)
+
 	app.egl_display = nil
 }

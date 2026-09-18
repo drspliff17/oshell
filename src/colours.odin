@@ -51,12 +51,12 @@ Shifted_Colours :: struct {
 
 COLOURS: Shifted_Colours
 
-UpdateColours :: proc() {
+update_colours :: proc() {
 	if !os.exists(PYWAL_PATH) do fmt.panicf("Could not find the given file: %s\n", PYWAL_PATH)
 
 	data, read_err := os.read_entire_file(PYWAL_PATH, context.allocator)
 	if read_err != nil {
-		fmt.eprintln("UpdateColours: Failed to read pywal cached file")
+		fmt.eprintln("update_colours: Failed to read pywal cached file")
 		os.exit(1)
 	}
 	defer delete(data)
