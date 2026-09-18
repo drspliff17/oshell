@@ -2,7 +2,43 @@ package main
 
 import "core:fmt"
 
+reset_font_atlas :: proc(layer: ^Layer) {
+	font := &layer.font
+
+	clear(&font.glyphs)
+
+	font.pen_x = 1
+	font.pen_y = 1
+	font.row_height = 0
+
+	glActiveTexture(GL_TEXTURE0)
+	glBindTexture(GL_TEXTURE_2D, font.texture)
+
+	glTexImage2D(
+		GL_TEXTURE_2D,
+		0,
+		i32(GL_ALPHA),
+		font.width,
+		font.height,
+		0,
+		GL_ALPHA,
+		GL_UNSIGNED_BYTE,
+		nil,
+	)
+
+	if DEBUG do fmt.println("font atlas reset")
+}
+
 cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bool) {
+	font := &layer.font
+
+	key := Glyph_Key{character, size}
+
+	// Already cached.
+	if glyph, ok := font.glyphs[key]; ok {
+		return glyph, true
+	}
+
 	if FT_Set_Pixel_Sizes(layer.font_face, 0, size) != 0 {
 		fmt.eprintln("Failed to set FreeType pixel size")
 		return {}, false
@@ -16,9 +52,7 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 	face_rec := cast(^FT_FaceRec)layer.font_face
 	slot := face_rec.glyph
 
-	if slot == nil {
-		return {}, false
-	}
+	if slot == nil do return {}, false
 
 	width := i32(slot.bitmap.width)
 	height := i32(slot.bitmap.rows)
@@ -31,27 +65,34 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 		advance   = i32(slot.advance.x >> 6),
 	}
 
-	if width == 0 || height == 0 do return glyph, true
+	// Spaces and similar glyphs have metrics but no bitmap.
+	if width == 0 || height == 0 {
+		font.glyphs[key] = glyph
+		return glyph, true
+	}
 
 	padding := i32(1)
 
-	if layer.font.pen_x + width + padding >= layer.font.width {
-		layer.font.pen_x = padding
-		layer.font.pen_y += layer.font.row_height + padding
-		layer.font.row_height = 0
+	// Start a new atlas row if this glyph does not fit horizontally.
+	if font.pen_x + width + padding >= font.width {
+		font.pen_x = padding
+		font.pen_y += font.row_height + padding
+		font.row_height = 0
 	}
 
-	if layer.font.pen_y + height + padding >= layer.font.height {
-		fmt.eprintln("Font atlas is full")
-		return {}, false
+	// Atlas full: throw away the cache and begin again.
+	if font.pen_y + height + padding >= font.height {
+		reset_font_atlas(layer)
+
+		font.pen_x = padding
+		font.pen_y = padding
 	}
 
-	glyph.x = layer.font.pen_x
-	glyph.y = layer.font.pen_y
+	glyph.x = font.pen_x
+	glyph.y = font.pen_y
 
 	glActiveTexture(GL_TEXTURE0)
-
-	glBindTexture(GL_TEXTURE_2D, layer.font.texture)
+	glBindTexture(GL_TEXTURE_2D, font.texture)
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
 
@@ -67,8 +108,12 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 		slot.bitmap.buffer,
 	)
 
-	layer.font.pen_x += width + padding
-	if height > layer.font.row_height do layer.font.row_height = height
+	font.pen_x += width + padding
+
+	if height > font.row_height do font.row_height = height
+
+	// Actually cache it.
+	font.glyphs[key] = glyph
 
 	return glyph, true
 }

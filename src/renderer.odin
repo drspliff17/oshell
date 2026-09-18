@@ -67,7 +67,16 @@ render :: proc(layer: ^Layer) {
 	// Media
 
 	if media_visible(&layer.media) {
-		media_text := media_get_title(&layer.media)
+		title := media_get_title(&layer.media)
+		artist := media_get_artist(&layer.media)
+
+		media_text_buf: [1024]u8
+		media_text := title
+
+		if artist != "" {
+			media_text = fmt.bprintf(media_text_buf[:], "%s - %s", artist, title)
+		}
+
 		media_text_size: FT_UInt = 13
 
 		media_gap: f32 = 5

@@ -103,8 +103,8 @@ media_player_is_playing :: proc(media: ^Media_State, player: cstring) -> bool {
 }
 
 
-// Read Metadata["xesam:title"] from a player.
-media_load_title :: proc(media: ^Media_State, player: cstring) -> bool {
+media_load_metadata :: proc(media: ^Media_State, player: cstring) -> bool {
+	media_clear_artist(media)
 	media_clear_title(media)
 
 	reply: ^sd_bus_message
@@ -125,12 +125,12 @@ media_load_title :: proc(media: ^Media_State, player: cstring) -> bool {
 
 	if result < 0 do return false
 	if reply == nil do return false
+
 	defer sd_bus_message_unref(reply)
 
 	result = sd_bus_message_enter_container(reply, SD_BUS_TYPE_ARRAY, "{sv}")
-	if result <= 0 do return false
 
-	found := false
+	if result <= 0 do return false
 
 	for {
 		result = sd_bus_message_enter_container(reply, SD_BUS_TYPE_DICT_ENTRY, "sv")
@@ -141,12 +141,14 @@ media_load_title :: proc(media: ^Media_State, player: cstring) -> bool {
 		key: cstring
 
 		result = sd_bus_message_read_basic(reply, SD_BUS_TYPE_STRING, &key)
+
 		if result <= 0 do return false
 
 		value_type: u8
 		value_contents: cstring
 
 		result = sd_bus_message_peek_type(reply, &value_type, &value_contents)
+
 		if result <= 0 do return false
 
 		if value_type != SD_BUS_TYPE_VARIANT {
@@ -155,35 +157,63 @@ media_load_title :: proc(media: ^Media_State, player: cstring) -> bool {
 		}
 
 		result = sd_bus_message_enter_container(reply, SD_BUS_TYPE_VARIANT, value_contents)
+
 		if result <= 0 do return false
 
-		if key != nil &&
-		   string(key) == "xesam:title" &&
-		   value_contents != nil &&
-		   string(value_contents) == "s" {
+		key_string := ""
+
+		if key != nil {
+			key_string = string(key)
+		}
+
+		if key_string == "xesam:title" {
 			title: cstring
 
 			result = sd_bus_message_read_basic(reply, SD_BUS_TYPE_STRING, &title)
 
 			if result > 0 && title != nil {
 				media_set_title(media, string(title))
-				found = media.title_len > 0
+			}
+
+		} else if key_string == "xesam:artist" {
+			result = sd_bus_message_enter_container(reply, SD_BUS_TYPE_ARRAY, "s")
+
+			if result > 0 {
+				artist: cstring
+
+				result = sd_bus_message_read_basic(reply, SD_BUS_TYPE_STRING, &artist)
+
+				if result > 0 && artist != nil {
+					media_set_artist(media, string(artist))
+				}
+
+				// Consume any remaining artists.
+				for {
+					other: cstring
+
+					result = sd_bus_message_read_basic(reply, SD_BUS_TYPE_STRING, &other)
+
+					if result <= 0 do break
+				}
+
+				sd_bus_message_exit_container(reply)
 			}
 
 		} else if value_contents != nil {
-			result = sd_bus_message_skip(reply, value_contents)
-			if result < 0 do return false
+			sd_bus_message_skip(reply, value_contents)
 		}
 
-		result = sd_bus_message_exit_container(reply)
-		if result < 0 do return false
-
-		result = sd_bus_message_exit_container(reply)
-		if result < 0 do return false
-
-		if found do break
+		sd_bus_message_exit_container(reply)
+		sd_bus_message_exit_container(reply)
 	}
-	return found
+
+	sd_bus_message_exit_container(reply)
+
+	if DEBUG {
+		fmt.println("metadata artist:", media_get_artist(media), "title:", media_get_title(media))
+	}
+
+	return media.title_len > 0
 }
 
 
@@ -211,7 +241,7 @@ media_refresh :: proc(app: ^App) -> (bool, bool) {
 			if name == current {
 				if media_player_is_playing(media, names[i]) {
 					media.playing = true
-					media_load_title(media, names[i])
+					media_load_metadata(media, names[i])
 					changed := media_changed(media, &before)
 					if DEBUG && changed {
 						fmt.println("media:", current, "-", media_get_title(media))
@@ -241,7 +271,7 @@ media_refresh :: proc(app: ^App) -> (bool, bool) {
 
 		media_set_player(media, name)
 		media.playing = true
-		media_load_title(media, names[i])
+		media_load_metadata(media, names[i])
 		changed := media_changed(media, &before)
 		if DEBUG && changed {
 			fmt.println("media:", media_get_player(media), "-", media_get_title(media))
@@ -355,7 +385,10 @@ media_process :: proc(app: ^App) -> bool {
 		media.dirty = false
 		changed, ok := media_refresh(app)
 		if !ok do return false
-		if changed do request_redraw_all(app)
+		if changed {
+			media_reset_scroll(media)
+			request_redraw_all(app)
+		}
 	}
 
 	return true

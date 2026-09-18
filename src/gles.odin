@@ -41,6 +41,7 @@ GL_COMPILE_STATUS :: u32(0x8B81)
 GL_LINK_STATUS :: u32(0x8B82)
 GL_INFO_LOG_LENGTH :: u32(0x8B84)
 
+GL_SCISSOR_TEST :: u32(0x0C11)
 
 // Textures
 
@@ -170,4 +171,6 @@ foreign gles_lib {
 	glDisable :: proc(cap: u32) ---
 
 	glBlendFunc :: proc(sf: u32, df: u32) ---
+
+	glScissor :: proc(x: i32, y: i32, width: i32, height: i32) ---
 }

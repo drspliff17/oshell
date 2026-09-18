@@ -1,5 +1,7 @@
 package main
 
+import "core:fmt"
+
 Media_Widget :: struct {
 	rect:     Rect,
 	bg_col:   Col,
@@ -12,10 +14,20 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 
 	if !media_visible(media) do return
 
-	text := media_get_title(media)
-	if text == "" do return
+	title := media_get_title(media)
+	if title == "" do return
+
+	artist := media_get_artist(media)
+
+	text_buf: [1024]u8
+	text := title
+
+	if artist != "" {
+		text = fmt.bprintf(text_buf[:], "%s - %s", artist, title)
+	}
 
 	// Background
+
 	glUseProgram(layer.program)
 
 	glUniform2f(layer.resolution_location, f32(layer.width), f32(layer.height))
@@ -31,6 +43,7 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	draw_rect(layer, widget.rect, widget.bg_col)
 
 	// Text
+
 	glUseProgram(layer.text_program)
 
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
@@ -67,55 +80,52 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 
 	baseline_y := content.y + (content.height - text_height) * 0.5 + metrics.ascent
 
+	// Fits normally.
+
 	if metrics.width <= content.width {
+		media.scroll_active = false
+		media.scroll_offset = 0
+		media.scroll_max = 0
+
 		text_x := content.x + (content.width - metrics.width) * 0.5
+
 		draw_text(layer, text, Vec2{text_x, baseline_y}, widget.text_col, widget.size)
+
 		return
 	}
 
-	ellipsis := "..."
-	ellipsis_metrics := measure_text(layer, ellipsis, widget.size)
-	available_width := max(0, content.width - ellipsis_metrics.width)
-	prefix_width: f32
+	// Scroll when the full Artist - Title text is too wide.
 
-	for character in text {
-		glyph, ok := cache_glyph(layer, character, widget.size)
-		if !ok do continue
+	overflow := metrics.width - content.width
 
-		advance := f32(glyph.advance)
+	media.scroll_active = true
 
-		if prefix_width + advance > available_width do break
-		prefix_width += advance
-	}
+	media.scroll_max = overflow + MEDIA_SCROLL_PADDING
 
-	total_width := prefix_width + ellipsis_metrics.width
-	text_x := content.x + (content.width - total_width) * 0.5
+	media.scroll_offset = min(media.scroll_offset, media.scroll_max)
 
-	glActiveTexture(GL_TEXTURE0)
-	glBindTexture(GL_TEXTURE_2D, layer.font.texture)
+	// OpenGL scissor coordinates start at bottom-left,
+	// while oshell coordinates start at top-left.
 
-	glUniform1i(layer.text_texture_location, 0)
-	glUniform4f(
-		layer.text_color_location,
-		widget.text_col.r,
-		widget.text_col.g,
-		widget.text_col.b,
-		widget.text_col.a,
+	scissor_x := i32(content.x)
+
+	scissor_y := i32(f32(layer.height) - (content.y + content.height))
+
+	scissor_width := i32(content.width)
+
+	scissor_height := i32(content.height)
+
+	glEnable(GL_SCISSOR_TEST)
+
+	glScissor(scissor_x, scissor_y, scissor_width, scissor_height)
+
+	draw_text(
+		layer,
+		text,
+		Vec2{content.x + MEDIA_SCROLL_PADDING * 0.5 - media.scroll_offset, baseline_y},
+		widget.text_col,
+		widget.size,
 	)
 
-	pen_x := text_x
-	drawn_width: f32
-
-	for character in text {
-		glyph, ok := cache_glyph(layer, character, widget.size)
-
-		if !ok do continue
-
-		advance := f32(glyph.advance)
-		if drawn_width + advance > available_width do break
-		pen_x = draw_glyph(layer, character, widget.size, pen_x, baseline_y)
-		drawn_width += advance
-	}
-
-	draw_text(layer, ellipsis, Vec2{pen_x, baseline_y}, widget.text_col, widget.size)
+	glDisable(GL_SCISSOR_TEST)
 }
