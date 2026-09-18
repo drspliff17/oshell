@@ -33,46 +33,32 @@ render :: proc(layer: ^Layer) {
 		padding = get_padding(4, .VERTICAL),
 	}
 
+	glDisable(GL_BLEND)
 	draw_rect(layer, bar_rect, PYWAL_COLOURS.Background)
+	glEnable(GL_BLEND)
 
 	bar_content := rect_content(bar_rect)
 
-	// Text renderer
-
-	// glUseProgram(layer.text_program)
-	//
-	// glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
-	//
-	// glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
-	//
-	// glEnableVertexAttribArray(u32(layer.text_position_location))
-	//
-	// glEnableVertexAttribArray(u32(layer.text_uv_location))
-	//
-	// // x, y
-	//
-	// glVertexAttribPointer(
-	// 	u32(layer.text_position_location),
-	// 	2,
-	// 	GL_FLOAT,
-	// 	GL_FALSE,
-	// 	4 * size_of(f32),
-	// 	nil,
-	// )
-	//
-	// // u, v
-	//
-	// glVertexAttribPointer(
-	// 	u32(layer.text_uv_location),
-	// 	2,
-	// 	GL_FLOAT,
-	// 	GL_FALSE,
-	// 	4 * size_of(f32),
-	// 	cast(rawptr)(uintptr(2 * size_of(f32))),
-	// )
+	// Workspaces
+	draw_workspaces(
+		layer,
+		Workspace_Widget {
+			rect = bar_content,
+			size = 20,
+			gap = 4,
+			radius = 16,
+			col = COLOURS.Widget_Sunken,
+			active_col = COLOURS.Widget_Raised,
+			text_col = COLOURS.Font_Dim,
+			active_text_col = COLOURS.Font,
+			border_size = 2,
+			border_col = COLOURS.Border_Sunken,
+			active_border_col = COLOURS.Border_Raised,
+			text_size = 14,
+		},
+	)
 
 	// Clock
-
 	draw_clock(
 		layer,
 		Clock_Widget {
@@ -92,6 +78,33 @@ render :: proc(layer: ^Layer) {
 		},
 	)
 
+	// Submap
+	submap_text := hyprland_get_submap(&layer.hypr.state)
+	submap_text_size: FT_UInt = 14
+	submap_padding: f32 = 8
+
+	submap_metrics := measure_text(layer, submap_text, submap_text_size)
+	submap_width := submap_metrics.width + submap_padding * 2
+
+	draw_submap(
+		layer,
+		Submap_Widget {
+			rect = {
+				x = f32(layer.width) - 10 - submap_width,
+				y = bar_content.y,
+				width = submap_width,
+				height = bar_content.height,
+				radius = 30,
+				padding = get_padding(submap_padding, .HORIZONTAL),
+				border_col = COLOURS.Border_Contrast_Widget,
+				border_size = 2,
+			},
+			bg_col = COLOURS.Widget,
+			text_col = COLOURS.Font,
+			text_size = 13,
+		},
+	)
+
 	// Keep one compositor frame callback available.
 	// Normal redraws do not wait for it.
 	if !layer.frame_pending {
@@ -101,17 +114,16 @@ render :: proc(layer: ^Layer) {
 			fmt.eprintln("Failed to create frame callback")
 		} else {
 			layer.frame_pending = true
-
 			wl.callback_add_listener(callback, &frame_listener, layer)
 		}
 	}
 
+	wl.surface_damage_buffer(layer.surface, 0, 0, int(layer.width), int(layer.height))
+
 	// Present
 	if eglSwapBuffers(layer.egl_display, layer.egl_surface) == EGL_FALSE {
 		fmt.eprintln("eglSwapBuffers failed")
-
 		fmt.eprintln("EGL error:", eglGetError())
-
 		return
 	}
 

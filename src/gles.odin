@@ -167,5 +167,7 @@ foreign gles_lib {
 
 	glEnable :: proc(cap: u32) ---
 
+	glDisable :: proc(cap: u32) ---
+
 	glBlendFunc :: proc(sf: u32, df: u32) ---
 }

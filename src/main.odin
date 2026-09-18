@@ -439,6 +439,12 @@ main :: proc() {
 
 	if DEBUG do fmt.println("renderer initialized")
 
+	if !hyprland_connect(&layer.hypr) {
+		fmt.eprintln("Hyprland IPC unavailable")
+		return
+	}
+	defer hyprland_disconnect(&layer.hypr)
+
 	// Initial frame
 	request_redraw(&layer)
 

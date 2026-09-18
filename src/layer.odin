@@ -17,6 +17,9 @@ Layer :: struct {
 	surface:                       ^wl.surface,
 	layer_surface:                 ^wl.layer_surface_v1,
 
+	// IPC
+	hypr:                          Hyprland_IPC,
+
 	// EGL bridge between the Wayland surface and OpenGL ES.
 	egl_window:                    ^wl.egl_window,
 	egl_display:                   EGLDisplay,

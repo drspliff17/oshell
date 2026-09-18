@@ -48,7 +48,7 @@ get_contrasting_colour :: proc(bg: Col, dark: Col, light: Col) -> Col {
 
 set_alpha :: proc(c: Col, alpha: f32) -> Col {return Col{c.r, c.g, c.b, alpha}}
 
-get_shifted_colours :: proc(amt: i16 = 50) {
+get_shifted_colours :: proc(amt: i16 = 20) {
 	fc := get_contrasting_colour(
 		PYWAL_COLOURS.Color4,
 		{0.22, 0.22, 0.22, 1},
@@ -57,16 +57,16 @@ get_shifted_colours :: proc(amt: i16 = 50) {
 
 	COLOURS = {
 		Background        = PYWAL_COLOURS.Background,
-		Background_Raised = colour_shift(PYWAL_COLOURS.Background, amt),
-		Background_Sunken = colour_shift(PYWAL_COLOURS.Background, -amt),
+		Background_Raised = colour_shift(PYWAL_COLOURS.Background, -amt),
+		Background_Sunken = colour_shift(PYWAL_COLOURS.Background, amt),
 		//
 		Border            = PYWAL_COLOURS.Color9,
-		Border_Raised     = colour_shift(PYWAL_COLOURS.Color9, amt),
-		Border_Sunken     = colour_shift(PYWAL_COLOURS.Color9, -amt),
+		Border_Raised     = colour_shift(PYWAL_COLOURS.Color9, -amt),
+		Border_Sunken     = colour_shift(PYWAL_COLOURS.Color9, amt),
 		//
 		Widget            = PYWAL_COLOURS.Color4,
-		Widget_Raised     = colour_shift(PYWAL_COLOURS.Color4, amt),
-		Widget_Sunken     = colour_shift(PYWAL_COLOURS.Color4, -amt),
+		Widget_Raised     = colour_shift(PYWAL_COLOURS.Color4, -amt),
+		Widget_Sunken     = colour_shift(PYWAL_COLOURS.Color4, amt),
 		//
 		Font              = fc,
 		Font_Dim          = set_alpha(fc, 0.8),
