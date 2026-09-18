@@ -17,9 +17,6 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 
 	text := fmt.bprintf(buf[:], "%02d:%02d", hour + 1, minute)
 
-	rect := clock.rect
-	rect.padding = GetPadding(8, .VERTICAL)
-
 	// Background
 
 	glUseProgram(layer.program)
@@ -32,7 +29,7 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 	glEnableVertexAttribArray(position_location)
 	glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 2 * size_of(f32), nil)
 
-	draw_rect(layer, rect, clock.bg_col)
+	draw_rect(layer, clock.rect, clock.bg_col)
 
 	// Text
 
@@ -62,7 +59,7 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 		cast(rawptr)(uintptr(2 * size_of(f32))),
 	)
 
-	content := rect_content(rect)
+	content := rect_content(clock.rect)
 
 	metrics := measure_text(layer, text, clock.size)
 	text_height := metrics.ascent + metrics.descent

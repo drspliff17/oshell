@@ -35,7 +35,7 @@ main :: proc() {
 	}
 
 	setup_signals()
-	GetPywalColours(PYWAL_PATH)
+	UpdateColours()
 
 	// Wayland
 	layer := Layer{}

@@ -29,16 +29,34 @@ Pywal_Colours :: struct {
 PYWAL_COLOURS: Pywal_Colours
 PYWAL_PATH :: "/home/drspliff/.cache/wal/colors-rgb"
 
-rgb_to_col :: proc(r: int, g: int, b: int) -> [3]f32 {
-	return {f32(r) / 255.0, f32(g) / 255.0, f32(b) / 255.0}
+Shifted_Colours :: struct {
+	//
+	Background:             Col,
+	Background_Raised:      Col,
+	Background_Sunken:      Col,
+	//
+	Border:                 Col,
+	Border_Raised:          Col,
+	Border_Sunken:          Col,
+	Border_Contrast_Widget: Col,
+	//
+	Widget:                 Col,
+	Widget_Raised:          Col,
+	Widget_Sunken:          Col,
+	//
+	Font:                   Col,
+	Font_Dim:               Col,
+	Font_Muted:             Col,
 }
 
-GetPywalColours :: proc(path: string) {
-	if !os.exists(path) do fmt.panicf("Could not find the given file: %s\n", path)
+COLOURS: Shifted_Colours
 
-	data, read_err := os.read_entire_file(path, context.allocator)
+UpdateColours :: proc() {
+	if !os.exists(PYWAL_PATH) do fmt.panicf("Could not find the given file: %s\n", PYWAL_PATH)
+
+	data, read_err := os.read_entire_file(PYWAL_PATH, context.allocator)
 	if read_err != nil {
-		fmt.eprintln("GetPywalColours: Failed to read pywal cached file")
+		fmt.eprintln("UpdateColours: Failed to read pywal cached file")
 		os.exit(1)
 	}
 	defer delete(data)
@@ -95,4 +113,6 @@ GetPywalColours :: proc(path: string) {
 		Color14    = colours[14],
 		Color15    = colours[15],
 	}
+
+	get_shifted_colours()
 }

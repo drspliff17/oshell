@@ -64,8 +64,8 @@ Layer :: struct {
 	frame_pending:                 bool,
 }
 
-
 // Layer surface events
+
 layer_surface_configure :: proc "cdecl" (
 	data: rawptr,
 	surface: ^wl.layer_surface_v1,

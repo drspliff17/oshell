@@ -24,14 +24,14 @@ Padding :: struct {
 }
 
 Rect :: struct {
+	border_col:  Col,
+	padding:     Padding,
 	x:           f32,
 	y:           f32,
 	width:       f32,
 	height:      f32,
 	radius:      f32,
 	border_size: f32,
-	border_col:  Col,
-	padding:     Padding,
 }
 
 Vec2 :: distinct [2]f32
@@ -39,7 +39,7 @@ Vec2 :: distinct [2]f32
 Col :: distinct [4]f32
 
 
-GetPadding :: proc(value: f32, kind: Padding_Type = .ALL) -> Padding {
+get_padding :: proc(value: f32, kind: Padding_Type = .ALL) -> Padding {
 	switch kind {
 	case .TOP:
 		return Padding{top = value}

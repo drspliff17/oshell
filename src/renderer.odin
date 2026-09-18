@@ -30,7 +30,7 @@ render :: proc(layer: ^Layer) {
 		y       = 0,
 		width   = f32(layer.width),
 		height  = f32(layer.height),
-		padding = GetPadding(4, .VERTICAL),
+		padding = get_padding(4, .VERTICAL),
 	}
 
 	draw_rect(layer, bar_rect, PYWAL_COLOURS.Background)
@@ -77,17 +77,17 @@ render :: proc(layer: ^Layer) {
 		layer,
 		Clock_Widget {
 			rect = {
-				x = 6,
+				x = 10,
 				y = bar_content.y,
 				width = 60,
 				height = bar_content.height,
 				radius = 30,
-				padding = GetPadding(5, .VERTICAL),
-				border_col = PYWAL_COLOURS.Color2,
-				border_size = 1,
+				padding = get_padding(8, .VERTICAL),
+				border_col = COLOURS.Border_Contrast_Widget,
+				border_size = 2,
 			},
-			bg_col = PYWAL_COLOURS.Color4,
-			text_col = {1, 1, 1, 1},
+			bg_col = COLOURS.Widget,
+			text_col = COLOURS.Font_Dim,
 			size = 14,
 		},
 	)

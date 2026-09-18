@@ -5,7 +5,7 @@ import wl "wayland"
 
 process_updates :: proc(layer: ^Layer) {
 	if g_reload_colours {
-		GetPywalColours(PYWAL_PATH)
+		UpdateColours()
 		g_reload_colours = false
 
 		request_redraw(layer)
