@@ -57,7 +57,31 @@ main :: proc() {
 	}
 
 	wl.registry_add_listener(layer.registry, &registry_listener, &layer)
+
+	// Discover globals.
 	wl.display_roundtrip(layer.display)
+
+	// Receive wl_output.name events.
+	wl.display_roundtrip(layer.display)
+
+	target_output := layer.hdmi_output
+
+	if target_output == nil {
+		target_output = layer.edp_output
+	}
+
+	if target_output == nil {
+		fmt.eprintln("Neither HDMI-A-1 nor eDP-1 found")
+		return
+	}
+
+	if DEBUG {
+		if target_output == layer.hdmi_output {
+			fmt.println("using output: HDMI-A-1")
+		} else {
+			fmt.println("using output: eDP-1")
+		}
+	}
 
 	if DEBUG do fmt.println("connected")
 
@@ -85,7 +109,7 @@ main :: proc() {
 	layer.layer_surface = wl.layer_shell_v1_get_layer_surface(
 		layer.layer_shell,
 		layer.surface,
-		nil,
+		target_output,
 		.overlay,
 		"oshell",
 	)

@@ -10,6 +10,8 @@ Layer :: struct {
 	registry:                      ^wl.registry,
 	compositor:                    ^wl.compositor,
 	layer_shell:                   ^wl.layer_shell_v1,
+	hdmi_output:                   ^wl.output,
+	edp_output:                    ^wl.output,
 
 	// Wayland surface objects for the layer-shell window.
 	surface:                       ^wl.surface,
@@ -62,37 +64,8 @@ Layer :: struct {
 	frame_pending:                 bool,
 }
 
-registry_global :: proc "cdecl" (
-	data: rawptr,
-	registry: ^wl.registry,
-	name: uint,
-	interface: cstring,
-	version: uint,
-) {
-	layer := cast(^Layer)data
 
-	if string(interface) == "wl_compositor" {
-		layer.compositor = cast(^wl.compositor)wl.registry_bind(
-			registry,
-			name,
-			&wl.compositor_interface,
-			4,
-		)
-	}
-
-	if string(interface) == "zwlr_layer_shell_v1" {
-		layer.layer_shell = cast(^wl.layer_shell_v1)wl.registry_bind(
-			registry,
-			name,
-			&wl.layer_shell_v1_interface,
-			1,
-		)
-	}
-}
-
-registry_global_remove :: proc "cdecl" (data: rawptr, registry: ^wl.registry, name: uint) {
-}
-
+// Layer surface events
 layer_surface_configure :: proc "cdecl" (
 	data: rawptr,
 	surface: ^wl.layer_surface_v1,
@@ -109,7 +82,7 @@ layer_surface_configure :: proc "cdecl" (
 	layer.width = width
 	layer.height = height
 
-	fmt.println("configure:", width, height, "serial:", serial)
+	if DEBUG do fmt.println("configure:", width, height, "serial:", serial)
 }
 
 layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v1) {
@@ -118,5 +91,5 @@ layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v
 	layer := cast(^Layer)data
 	layer.configured = false
 
-	fmt.println("layer surface closed")
+	if DEBUG do fmt.println("layer surface closed")
 }
