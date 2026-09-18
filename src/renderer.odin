@@ -77,8 +77,7 @@ render :: proc(layer: ^Layer) {
 			media_text = fmt.bprintf(media_text_buf[:], "%s - %s", artist, title)
 		}
 
-		media_text_size: FT_UInt = 13
-
+		media_text_size: FT_UInt = 14
 		media_gap: f32 = 5
 		media_padding: f32 = 5
 		media_max_width: f32 = 300
@@ -101,7 +100,7 @@ render :: proc(layer: ^Layer) {
 					border_col = COLOURS.Border_Contrast_Widget,
 				},
 				bg_col = COLOURS.Widget,
-				text_col = COLOURS.Font_Dim,
+				text_col = COLOURS.Font,
 				size = media_text_size,
 			},
 		)
