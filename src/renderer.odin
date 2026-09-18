@@ -40,6 +40,64 @@ render :: proc(layer: ^Layer) {
 
 	bar_content := rect_content(bar_rect)
 
+	// Clock
+
+	clock_x: f32 = 10
+	clock_width: f32 = 60
+
+	draw_clock(
+		layer,
+		Clock_Widget {
+			rect = {
+				x = clock_x,
+				y = bar_content.y,
+				width = clock_width,
+				height = bar_content.height,
+				radius = 30,
+				padding = get_padding(8, .VERTICAL),
+				border_col = COLOURS.Border_Contrast_Widget,
+				border_size = 2,
+			},
+			bg_col = COLOURS.Widget,
+			text_col = COLOURS.Font_Dim,
+			size = 14,
+		},
+	)
+
+	// Media
+
+	if media_visible(&layer.media) {
+		media_text := media_get_title(&layer.media)
+		media_text_size: FT_UInt = 13
+
+		media_gap: f32 = 5
+		media_padding: f32 = 5
+		media_max_width: f32 = 300
+
+		media_metrics := measure_text(layer, media_text, media_text_size)
+
+		media_width := min(media_metrics.width + media_padding * 2, media_max_width)
+
+		draw_media_widget(
+			layer,
+			Media_Widget {
+				rect = {
+					x = clock_x + clock_width + media_gap,
+					y = bar_content.y,
+					width = media_width,
+					height = bar_content.height,
+					radius = 30,
+					padding = get_padding(media_padding, .HORIZONTAL),
+					border_size = 2,
+					border_col = COLOURS.Border_Contrast_Widget,
+				},
+				bg_col = COLOURS.Widget,
+				text_col = COLOURS.Font_Dim,
+				size = media_text_size,
+			},
+		)
+	}
+
 	// Workspaces
 	draw_workspaces(
 		layer,
@@ -56,26 +114,6 @@ render :: proc(layer: ^Layer) {
 			border_col = COLOURS.Border_Sunken,
 			active_border_col = COLOURS.Border_Raised,
 			text_size = 14,
-		},
-	)
-
-	// Clock
-	draw_clock(
-		layer,
-		Clock_Widget {
-			rect = {
-				x = 10,
-				y = bar_content.y,
-				width = 60,
-				height = bar_content.height,
-				radius = 30,
-				padding = get_padding(8, .VERTICAL),
-				border_col = COLOURS.Border_Contrast_Widget,
-				border_size = 2,
-			},
-			bg_col = COLOURS.Widget,
-			text_col = COLOURS.Font_Dim,
-			size = 14,
 		},
 	)
 

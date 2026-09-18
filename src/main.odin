@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:mem"
 import "core:os"
 
@@ -38,6 +39,9 @@ run_app :: proc() {
 
 	if !app_init_renderer(&app) do return
 	defer app_destroy_renderer(&app)
+
+	if !media_init(&app) do fmt.eprintln("Media integration unavailable")
+	defer media_destroy(&app)
 
 	if !app_init_hyprland(&app) do return
 	defer app_destroy_hyprland(&app)

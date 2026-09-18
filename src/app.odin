@@ -18,6 +18,9 @@ App :: struct {
 	hdmi_output:                   ^wl.output,
 	edp_output:                    ^wl.output,
 
+	// Media
+	media:                         Media_State,
+
 	// IPC
 	hypr:                          Hyprland_IPC,
 	ipc:                           Oshell_IPC,

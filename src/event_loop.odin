@@ -17,10 +17,11 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 	app := layer.app
 
 	wayland_fd := wl.display_get_fd(app.display)
-	fds := [3]posix.pollfd {
+	fds := [4]posix.pollfd {
 		{fd = posix.FD(wayland_fd), events = {.IN}},
 		{fd = app.hypr.fd, events = {.IN}},
 		{fd = app.ipc.fd, events = {.IN}},
+		{fd = app.media.fd, events = {.IN}},
 	}
 
 	test_start := time.tick_now()
@@ -45,6 +46,7 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 		fds[0].revents = {}
 		fds[1].revents = {}
 		fds[2].revents = {}
+		fds[3].revents = {}
 
 		timeout := milliseconds_until_next_minute()
 
@@ -105,16 +107,23 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 
 		if wl.display_dispatch_pending(app.display) < 0 do return
 
+		// Media
+		if app.media.fd >= 0 {
+			if .ERR in fds[3].revents || .HUP in fds[3].revents || .NVAL in fds[3].revents {
+				fmt.eprintln("Media: D-Bus connection lost")
+				return
+			}
+			if .IN in fds[3].revents do if !media_process(app) do return
+		}
+
 		// Hyprland IPC
 		if .ERR in fds[1].revents || .HUP in fds[1].revents || .NVAL in fds[1].revents do return
-
 		if .IN in fds[1].revents {
 			if !hyprland_read_events(&app.hypr, layer) do return
 		}
 
 		// oshell IPC
 		if .ERR in fds[2].revents || .HUP in fds[2].revents || .NVAL in fds[2].revents do return
-
 		if .IN in fds[2].revents {
 			if !oshell_ipc_handle(app) do fmt.eprintln("oshell IPC: Failed to handle connection")
 		}
