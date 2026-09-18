@@ -4,6 +4,10 @@ import "core:fmt"
 import wl "wayland"
 
 App :: struct {
+	// Layers
+	layers:                        [dynamic]^Layer,
+	current_layer:                 ^Layer,
+
 	// Wayland globals
 	display:                       ^wl.display,
 	registry:                      ^wl.registry,
@@ -16,6 +20,7 @@ App :: struct {
 
 	// IPC
 	hypr:                          Hyprland_IPC,
+	ipc:                           Oshell_IPC,
 
 	// EGL shared state
 	egl_display:                   EGLDisplay,
@@ -45,12 +50,11 @@ App :: struct {
 	text_color_location:           i32,
 	text_texture_location:         i32,
 
-	// Layers
-	layers:                        [dynamic]^Layer,
-	current_layer:                 ^Layer,
-
 	// Output configuration
 	output_mode:                   OUTPUT_MODES,
+
+	//
+	exit_requested:                bool,
 }
 
 get_app :: proc() -> ^App {return cast(^App)context.user_ptr}
