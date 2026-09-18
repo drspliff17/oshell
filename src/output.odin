@@ -4,6 +4,12 @@ import "base:runtime"
 import "core:fmt"
 import wl "wayland"
 
+OUTPUT_MODES :: enum {
+	Preferred,
+	Inverted,
+	All,
+}
+
 output_listener := wl.output_listener {
 	geometry    = output_geometry,
 	mode        = output_mode,
@@ -43,21 +49,22 @@ output_done :: proc "c" (data: rawptr, output: ^wl.output) {
 output_scale :: proc "c" (data: rawptr, output: ^wl.output, factor: int) {
 }
 
-output_name :: proc "c" (data: rawptr, output: ^wl.output, name: cstring) {
+output_name :: proc "cdecl" (data: rawptr, output: ^wl.output, name: cstring) {
 	context = runtime.default_context()
 
-	layer := cast(^Layer)data
-	name_string := string(name)
+	app := cast(^App)data
+	context.user_ptr = app
 
-	if DEBUG do fmt.println("output:", name_string)
+	output_name := string(name)
 
-	switch name_string {
+	switch output_name {
 	case "HDMI-A-1":
-		layer.hdmi_output = output
-
+		app.hdmi_output = output
 	case "eDP-1":
-		layer.edp_output = output
+		app.edp_output = output
 	}
+
+	if DEBUG do fmt.println("output:", output_name)
 }
 
 output_description :: proc "c" (data: rawptr, output: ^wl.output, description: cstring) {

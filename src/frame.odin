@@ -12,9 +12,11 @@ frame_done :: proc "c" (data: rawptr, callback: ^wl.callback, frame_time: uint) 
 	context = runtime.default_context()
 
 	layer := cast(^Layer)data
+	context.user_ptr = layer.app
 
 	wl.callback_destroy(callback)
 
+	layer.frame_callback = nil
 	layer.frame_pending = false
 }
 

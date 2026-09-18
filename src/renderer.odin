@@ -8,6 +8,7 @@ request_redraw :: proc(layer: ^Layer) {
 }
 
 render :: proc(layer: ^Layer) {
+	if !layer_make_current(layer) do return
 	glViewport(0, 0, i32(layer.width), i32(layer.height))
 
 	glClearColor(0.0, 0.0, 0.0, 0.0)
@@ -111,7 +112,9 @@ render :: proc(layer: ^Layer) {
 		if callback == nil {
 			fmt.eprintln("Failed to create frame callback")
 		} else {
+			layer.frame_callback = callback
 			layer.frame_pending = true
+
 			wl.callback_add_listener(callback, &frame_listener, layer)
 		}
 	}
