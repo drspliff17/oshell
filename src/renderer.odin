@@ -11,29 +11,26 @@ render :: proc(layer: ^Layer) {
 	glViewport(0, 0, i32(layer.width), i32(layer.height))
 
 	glClearColor(0.0, 0.0, 0.0, 0.0)
-
 	glClear(GL_COLOR_BUFFER_BIT)
 
 	// Rectangle renderer
 	glUseProgram(layer.program)
 
 	glUniform2f(layer.resolution_location, f32(layer.width), f32(layer.height))
-
 	glBindBuffer(GL_ARRAY_BUFFER, layer.vbo)
 
 	position_location := u32(layer.rect_vertex_position_location)
 
 	glEnableVertexAttribArray(position_location)
-
 	glVertexAttribPointer(position_location, 2, GL_FLOAT, GL_FALSE, 2 * size_of(f32), nil)
 
 	// Bar background
 	bar_rect := Rect {
-		x = 0,
-		y = 0,
-		width = f32(layer.width),
-		height = f32(layer.height),
-		padding = Padding{top = 4, bottom = 4},
+		x       = 0,
+		y       = 0,
+		width   = f32(layer.width),
+		height  = f32(layer.height),
+		padding = GetPadding(4, .VERTICAL),
 	}
 
 	draw_rect(layer, bar_rect, PYWAL_COLOURS.Background)
@@ -85,7 +82,7 @@ render :: proc(layer: ^Layer) {
 				width = 60,
 				height = bar_content.height,
 				radius = 30,
-				padding = {top = 5, bottom = 5},
+				padding = GetPadding(5, .VERTICAL),
 				border_col = PYWAL_COLOURS.Color2,
 				border_size = 1,
 			},

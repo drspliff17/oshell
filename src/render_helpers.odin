@@ -39,7 +39,7 @@ Vec2 :: distinct [2]f32
 Col :: distinct [4]f32
 
 
-padding :: proc(value: f32, kind: Padding_Type = .ALL) -> Padding {
+GetPadding :: proc(value: f32, kind: Padding_Type = .ALL) -> Padding {
 	switch kind {
 	case .TOP:
 		return Padding{top = value}
@@ -158,13 +158,7 @@ draw_glyph :: proc(
 	baseline_y: f32,
 ) -> f32 {
 	glyph, ok := cache_glyph(layer, character, size)
-
-	if !ok {
-		return pen_x
-	}
-
-	// Spaces and similar glyphs can have an advance
-	// without having any pixels to draw.
+	if !ok do return pen_x
 
 	if glyph.width == 0 || glyph.height == 0 {
 		return pen_x + f32(glyph.advance)
@@ -177,11 +171,9 @@ draw_glyph :: proc(
 	h := f32(glyph.height)
 
 	u0 := f32(glyph.x) / f32(layer.font.width)
-
 	v0 := f32(glyph.y) / f32(layer.font.height)
 
 	u1 := f32(glyph.x + glyph.width) / f32(layer.font.width)
-
 	v1 := f32(glyph.y + glyph.height) / f32(layer.font.height)
 
 	vertices := [24]f32 {
@@ -212,7 +204,6 @@ draw_glyph :: proc(
 	}
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(vertices), &vertices[0])
-
 	glDrawArrays(GL_TRIANGLES, 0, 6)
 
 	return pen_x + f32(glyph.advance)
@@ -223,19 +214,14 @@ measure_text :: proc(layer: ^Layer, text: string, size: FT_UInt = 16) -> Text_Me
 
 	for character in text {
 		glyph, ok := cache_glyph(layer, character, size)
-
-		if !ok {
-			continue
-		}
+		if !ok do continue
 
 		metrics.width += f32(glyph.advance)
 
 		ascent := f32(glyph.bearing_y)
-
 		descent := f32(glyph.height) - f32(glyph.bearing_y)
 
 		metrics.ascent = max(metrics.ascent, ascent)
-
 		metrics.descent = max(metrics.descent, descent)
 	}
 
