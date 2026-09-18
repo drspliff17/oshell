@@ -57,7 +57,6 @@ create_program :: proc(vertex_source, fragment_source: string) -> u32 {
 	glAttachShader(program, vertex_shader)
 	glAttachShader(program, fragment_shader)
 
-	// Explicitly bind our vertex attribute to location 0.
 	glBindAttribLocation(program, 0, "position")
 
 	glLinkProgram(program)

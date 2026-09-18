@@ -105,8 +105,6 @@ render :: proc(layer: ^Layer) {
 		},
 	)
 
-	// Keep one compositor frame callback available.
-	// Normal redraws do not wait for it.
 	if !layer.frame_pending {
 		callback := wl.surface_frame(layer.surface)
 

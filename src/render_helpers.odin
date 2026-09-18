@@ -114,10 +114,8 @@ draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
 	border_size := max(rect.border_size, 0)
 
 	if border_size > 0 {
-		// Draw the border as the outer rounded rectangle.
 		draw_rect_raw(layer, rect, rect.border_col)
 
-		// Draw the fill slightly inset on top.
 		inner := Rect {
 			x      = rect.x + border_size,
 			y      = rect.y + border_size,
@@ -125,9 +123,7 @@ draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
 			height = rect.height - border_size * 2,
 			radius = max(0, rect.radius - border_size),
 		}
-
 		draw_rect_raw(layer, inner, col)
-
 		return
 	}
 
@@ -136,18 +132,13 @@ draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
 
 draw_text :: proc(layer: ^Layer, text: string, pos: Vec2, col: Col, size: FT_UInt = 16) {
 	glActiveTexture(GL_TEXTURE0)
-
 	glBindTexture(GL_TEXTURE_2D, layer.font.texture)
 
 	glUniform1i(layer.text_texture_location, 0)
-
 	glUniform4f(layer.text_color_location, col.r, col.g, col.b, col.a)
 
 	pen_x := pos.x
-
-	for character in text {
-		pen_x = draw_glyph(layer, character, size, pen_x, pos.y)
-	}
+	for character in text do pen_x = draw_glyph(layer, character, size, pen_x, pos.y)
 }
 
 draw_glyph :: proc(
@@ -160,9 +151,7 @@ draw_glyph :: proc(
 	glyph, ok := cache_glyph(layer, character, size)
 	if !ok do return pen_x
 
-	if glyph.width == 0 || glyph.height == 0 {
-		return pen_x + f32(glyph.advance)
-	}
+	if glyph.width == 0 || glyph.height == 0 do return pen_x + f32(glyph.advance)
 
 	x := pen_x + f32(glyph.bearing_x)
 	y := baseline_y - f32(glyph.bearing_y)
@@ -205,7 +194,6 @@ draw_glyph :: proc(
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(vertices), &vertices[0])
 	glDrawArrays(GL_TRIANGLES, 0, 6)
-
 	return pen_x + f32(glyph.advance)
 }
 

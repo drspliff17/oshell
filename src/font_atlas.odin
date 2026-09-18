@@ -31,22 +31,16 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 		advance   = i32(slot.advance.x >> 6),
 	}
 
-	// Spaces and similar glyphs can have an advance
-	// without having any bitmap pixels.
-	if width == 0 || height == 0 {
-		return glyph, true
-	}
+	if width == 0 || height == 0 do return glyph, true
 
 	padding := i32(1)
 
-	// Move to a new row if this glyph doesn't fit.
 	if layer.font.pen_x + width + padding >= layer.font.width {
 		layer.font.pen_x = padding
 		layer.font.pen_y += layer.font.row_height + padding
 		layer.font.row_height = 0
 	}
 
-	// Make sure the atlas still has room.
 	if layer.font.pen_y + height + padding >= layer.font.height {
 		fmt.eprintln("Font atlas is full")
 		return {}, false
@@ -74,10 +68,7 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 	)
 
 	layer.font.pen_x += width + padding
-
-	if height > layer.font.row_height {
-		layer.font.row_height = height
-	}
+	if height > layer.font.row_height do layer.font.row_height = height
 
 	return glyph, true
 }
