@@ -20,7 +20,6 @@ draw_volume :: proc(layer: ^Layer, widget: Volume_Widget) {
 	if !volume_available(volume) do return
 
 	text_buffer: [64]u8
-
 	text := volume_get_text(volume, text_buffer[:])
 	if text == "" do return
 

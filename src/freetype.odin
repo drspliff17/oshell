@@ -198,13 +198,13 @@ Glyph_Key :: struct {
 
 // Application font atlas
 Font :: struct {
+  glyphs:     map[Glyph_Key]Glyph,
 	texture:    u32,
 	width:      i32,
 	height:     i32,
 	pen_x:      i32,
 	pen_y:      i32,
 	row_height: i32,
-	glyphs:     map[Glyph_Key]Glyph,
 }
 
 

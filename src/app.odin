@@ -4,65 +4,49 @@ import "core:fmt"
 import wl "wayland"
 
 App :: struct {
-	// Layers
-	layers:                        [dynamic]^Layer,
-	current_layer:                 ^Layer,
+	// IPC
+	hypr:           Hyprland_IPC,
+	ipc:            Oshell_IPC,
 
-	// Wayland globals
-	display:                       ^wl.display,
-	registry:                      ^wl.registry,
-	compositor:                    ^wl.compositor,
-	layer_shell:                   ^wl.layer_shell_v1,
-
-	// Outputs
-	hdmi_output:                   ^wl.output,
-	edp_output:                    ^wl.output,
+	// Font Rendering State
+	font:           Font,
 
 	// Media - MPRIS
-	media:                         Media_State,
+	media:          Media_State,
 
 	// Volume
-	volume:                        Volume_State,
+	volume:         Volume_State,
 
-	// IPC
-	hypr:                          Hyprland_IPC,
-	ipc:                           Oshell_IPC,
+	// Layers
+	layers:         [dynamic]^Layer,
+	current_layer:  ^Layer,
+
+	// Render State
+	using renderer: Render_State,
+
+	// Wayland globals
+	display:        ^wl.display,
+	registry:       ^wl.registry,
+	compositor:     ^wl.compositor,
+	layer_shell:    ^wl.layer_shell_v1,
+
+	// Outputs
+	hdmi_output:    ^wl.output,
+	edp_output:     ^wl.output,
 
 	// EGL shared state
-	egl_display:                   EGLDisplay,
-	egl_config:                    EGLConfig,
-	egl_context:                   EGLContext,
+	egl_display:    EGLDisplay,
+	egl_config:     EGLConfig,
+	egl_context:    EGLContext,
 
-	// Font rendering state
-	font_face:                     FT_Face,
-	font:                          Font,
-
-	// Rectangle renderer
-	program:                       u32,
-	vbo:                           u32,
-	resolution_location:           i32,
-	color_location:                i32,
-	border_color_location:         i32,
-	rect_position_location:        i32,
-	rect_size_location:            i32,
-	rect_radius_location:          i32,
-	border_size_location:          i32,
-	rect_vertex_position_location: i32,
-
-	// Text renderer
-	text_program:                  u32,
-	text_vbo:                      u32,
-	text_position_location:        i32,
-	text_uv_location:              i32,
-	text_resolution_location:      i32,
-	text_color_location:           i32,
-	text_texture_location:         i32,
+	//
+	font_face:      FT_Face,
 
 	// Output configuration
-	output_mode:                   OUTPUT_MODES,
+	output_mode:    OUTPUT_MODES,
 
 	// Lifecycle
-	exit_requested:                bool,
+	exit_requested: bool,
 }
 
 // Returns ^App from context.user_ptr

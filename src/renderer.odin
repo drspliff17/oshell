@@ -3,6 +3,29 @@ package main
 import "core:fmt"
 import wl "wayland"
 
+Render_State :: struct {
+	// Rectangle renderer
+	program:                       u32,
+	vbo:                           u32,
+	resolution_location:           i32,
+	color_location:                i32,
+	border_color_location:         i32,
+	rect_position_location:        i32,
+	rect_size_location:            i32,
+	rect_radius_location:          i32,
+	border_size_location:          i32,
+	rect_vertex_position_location: i32,
+
+	// Text renderer
+	text_program:                  u32,
+	text_vbo:                      u32,
+	text_position_location:        i32,
+	text_uv_location:              i32,
+	text_resolution_location:      i32,
+	text_color_location:           i32,
+	text_texture_location:         i32,
+}
+
 request_redraw :: proc(layer: ^Layer) {
 	if layer == nil do return
 	if layer.app.output_mode == .Hide do return
