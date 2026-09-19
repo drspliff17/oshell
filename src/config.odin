@@ -7,6 +7,7 @@ import "core:os"
 CONFIG_FILE_PATH :: "/home/drspliff/.config/oshell/config.json"
 Config :: struct {
 	font_filepath: string,
+	font_size:     FT_UInt,
 }
 
 config_create :: proc() -> bool {
@@ -18,7 +19,8 @@ config_create :: proc() -> bool {
 		}
 	}
 	default_config := Config {
-		font_filepath = "/home/drspliff/.local/share/fonts/FiraCode/FiraCodeNerdFont-Medium.ttf",
+		font_filepath = DEFAULT_FONT_PATH,
+		font_size     = DEFAULT_FONT_SIZE,
 	}
 	b, e := json.marshal(default_config)
 	if e != nil {

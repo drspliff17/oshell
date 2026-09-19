@@ -50,6 +50,10 @@ render :: proc(layer: ^Layer) {
 	if layer.egl_surface == nil do return
 	if !layer_make_current(layer) do return
 
+	app := cast(^App)context.user_ptr
+
+	font_size := app_get_font_size(app)
+
 	glViewport(0, 0, i32(layer.width), i32(layer.height))
 
 	glClearColor(0.0, 0.0, 0.0, 0.0)
@@ -101,7 +105,7 @@ render :: proc(layer: ^Layer) {
 			},
 			bg_col = COLOURS.Widget,
 			text_col = COLOURS.Font,
-			size = 14,
+			size = font_size,
 		},
 	)
 
@@ -118,12 +122,11 @@ render :: proc(layer: ^Layer) {
 			media_text = fmt.bprintf(media_text_buf[:], "%s - %s", artist, title)
 		}
 
-		media_text_size: FT_UInt = 14
 		media_gap: f32 = 5
 		media_padding: f32 = 5
 		media_max_width: f32 = 300
 
-		media_metrics := measure_text(layer, media_text, media_text_size)
+		media_metrics := measure_text(layer, media_text, font_size)
 
 		media_width := min(media_metrics.width + media_padding * 2, media_max_width)
 
@@ -142,7 +145,7 @@ render :: proc(layer: ^Layer) {
 				},
 				bg_col = COLOURS.Widget,
 				text_col = COLOURS.Font,
-				size = media_text_size,
+				size = font_size,
 			},
 		)
 	}
@@ -162,17 +165,16 @@ render :: proc(layer: ^Layer) {
 			border_size = 2,
 			border_col = COLOURS.Border_Sunken,
 			active_border_col = COLOURS.Border_Raised,
-			text_size = 14,
+			text_size = font_size,
 		},
 	)
 
 	// Submap
 	submap_text := hyprland_get_submap(&layer.hypr.state)
 
-	submap_text_size: FT_UInt = 14
 	submap_padding: f32 = 8
 
-	submap_metrics := measure_text(layer, submap_text, submap_text_size)
+	submap_metrics := measure_text(layer, submap_text, font_size)
 	submap_width := submap_metrics.width + submap_padding * 2
 	submap_x := f32(layer.width) - 10 - submap_width
 
@@ -181,11 +183,10 @@ render :: proc(layer: ^Layer) {
 		volume_text_buffer: [64]u8
 		volume_text := volume_get_text(&layer.volume, volume_text_buffer[:])
 
-		volume_text_size: FT_UInt = 13
 		volume_padding: f32 = 8
 		volume_gap: f32 = 5
 
-		volume_metrics := measure_text(layer, volume_text, volume_text_size)
+		volume_metrics := measure_text(layer, volume_text, font_size)
 		volume_width := volume_metrics.width + volume_padding * 2
 
 		draw_volume(
@@ -203,7 +204,7 @@ render :: proc(layer: ^Layer) {
 				},
 				bg_col = COLOURS.Widget,
 				text_col = COLOURS.Font,
-				text_size = volume_text_size,
+				text_size = font_size,
 			},
 		)
 	}
@@ -223,7 +224,7 @@ render :: proc(layer: ^Layer) {
 			},
 			bg_col = COLOURS.Widget,
 			text_col = COLOURS.Font,
-			text_size = 13,
+			text_size = font_size,
 		},
 	)
 

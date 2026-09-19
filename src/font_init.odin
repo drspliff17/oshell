@@ -5,10 +5,19 @@ import "core:os"
 import "core:strings"
 
 DEFAULT_FONT_PATH :: "/home/drspliff/.local/share/fonts/BigBlueTerm437NerdFontMono-Regular.ttf"
+DEFAULT_FONT_SIZE :: 14
 
 app_get_font_path :: proc(app: ^App) -> string {
-	if len(app.config.font_filepath) > 0 && os.exists(app.config.font_filepath) do return app.config.font_filepath
-	return DEFAULT_FONT_PATH
+	if !app.config_initialised do return DEFAULT_FONT_PATH
+	if len(app.config.font_filepath) == 0 do return DEFAULT_FONT_PATH
+	if !os.exists(app.config.font_filepath) do return DEFAULT_FONT_PATH
+	return app.config.font_filepath
+}
+
+app_get_font_size :: proc(app: ^App) -> FT_UInt {
+	if !app.config_initialised do return DEFAULT_FONT_SIZE
+	if app.config.font_size <= 0 do return DEFAULT_FONT_SIZE
+	return app.config.font_size
 }
 
 app_reset_font_cache :: proc(app: ^App) {
