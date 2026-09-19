@@ -39,8 +39,10 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	glUseProgram(layer.text_program)
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
+
 	glEnableVertexAttribArray(u32(layer.text_position_location))
 	glEnableVertexAttribArray(u32(layer.text_uv_location))
+
 	glVertexAttribPointer(
 		u32(layer.text_position_location),
 		2,
@@ -60,9 +62,14 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	)
 
 	content := rect_content(widget.rect)
+
 	metrics := measure_text(layer, text, widget.size)
-	text_height := metrics.ascent + metrics.descent
-	baseline_y := content.y + (content.height - text_height) * 0.5 + metrics.ascent
+
+	// Fixed ascender + descender sample for vertical positioning
+	baseline_metrics := measure_text(layer, "Hg", widget.size)
+
+	text_height := baseline_metrics.ascent + baseline_metrics.descent
+	baseline_y := content.y + (content.height - text_height) * 0.5 + baseline_metrics.ascent
 
 	// Fits normally
 	if metrics.width <= content.width {
@@ -71,6 +78,7 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 		media.scroll_max = 0
 
 		text_x := content.x + (content.width - metrics.width) * 0.5
+
 		draw_text(layer, text, Vec2{text_x, baseline_y}, widget.text_col, widget.size)
 		return
 	}
@@ -78,7 +86,6 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	// Infinite marquee
 	media.scroll_active = true
 	media.scroll_max = metrics.width + MEDIA_SCROLL_GAP
-
 	if media.scroll_offset >= media.scroll_max do media.scroll_offset = 0
 
 	scissor_x := i32(content.x)
