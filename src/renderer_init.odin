@@ -7,6 +7,7 @@ app_init_renderer :: proc(app: ^App) -> bool {
 		fmt.eprintln("Cannot initialize renderer without a layer")
 		return false
 	}
+
 	if !layer_make_current(app.layers[0]) do return false
 
 	// Font atlas
@@ -31,6 +32,7 @@ app_init_renderer :: proc(app: ^App) -> bool {
 	glBindTexture(GL_TEXTURE_2D, app.font.texture)
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -47,6 +49,7 @@ app_init_renderer :: proc(app: ^App) -> bool {
 		GL_UNSIGNED_BYTE,
 		nil,
 	)
+
 	if DEBUG do fmt.println("font atlas created:", app.font.width, "x", app.font.height)
 
 	// Rectangle shader
@@ -66,7 +69,6 @@ app_init_renderer :: proc(app: ^App) -> bool {
 	app.rect_radius_location = glGetUniformLocation(app.program, "rect_radius")
 	app.border_color_location = glGetUniformLocation(app.program, "border_color")
 	app.border_size_location = glGetUniformLocation(app.program, "border_size")
-
 
 	if app.rect_vertex_position_location < 0 {
 		fmt.eprintln("Failed to find rectangle position attribute")
@@ -120,13 +122,11 @@ app_init_renderer :: proc(app: ^App) -> bool {
 
 	// Rectangle VBO
 	glGenBuffers(1, &app.vbo)
-
 	glBindBuffer(GL_ARRAY_BUFFER, app.vbo)
 	glBufferData(GL_ARRAY_BUFFER, 12 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
 	// Text shader
 	app.text_program = create_program(TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
-
 	if app.text_program == 0 {
 		fmt.eprintln("Failed to create text shader program")
 		app_destroy_renderer(app)
@@ -173,15 +173,14 @@ app_init_renderer :: proc(app: ^App) -> bool {
 
 	// Text VBO
 	glGenBuffers(1, &app.text_vbo)
-
 	glBindBuffer(GL_ARRAY_BUFFER, app.text_vbo)
 	glBufferData(GL_ARRAY_BUFFER, 24 * size_of(f32), nil, GL_DYNAMIC_DRAW)
 
-	// Blending
+	// Premultiplied alpha blending
 	glEnable(GL_BLEND)
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-	if DEBUG do fmt.println("renderer initialized")
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
+	if DEBUG do fmt.println("renderer initialized")
 	return true
 }
 

@@ -1,7 +1,6 @@
 package main
 
 // Rectangle vertex shader
-
 RECT_VERTEX_SHADER :: `
 attribute vec2 position;
 
@@ -25,9 +24,12 @@ void main() {
 
 
 // Rectangle fragment shader
-
 RECT_FRAGMENT_SHADER :: `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
 precision mediump float;
+#endif
 
 uniform vec4 color;
 uniform vec4 border_color;
@@ -54,11 +56,20 @@ float rounded_rect_distance(
         radius;
 }
 
+float coverage(float distance) {
+    // One-pixel AA band centred exactly on the edge.
+    return 1.0 - smoothstep(
+        -0.5,
+         0.5,
+         distance
+    );
+}
+
 void main() {
     vec2 half_size = rect_size * 0.5;
     vec2 p = local_position - half_size;
 
-    // Outer rectangle
+    // Outer shape
 
     float outer_distance = rounded_rect_distance(
         p,
@@ -66,28 +77,26 @@ void main() {
         rect_radius
     );
 
-    float outer_alpha =
-        1.0 - smoothstep(
-            0.0,
-            1.0,
-            outer_distance
-        );
+    float outer_alpha = coverage(
+        outer_distance
+    );
 
-    // Inner rectangle
+    // Inner shape / border
 
-    float inset = max(border_size, 0.0);
+    float inset = max(
+        border_size,
+        0.0
+    );
 
-    vec2 inner_half_size =
-        max(
-            half_size - vec2(inset),
-            vec2(0.0)
-        );
+    vec2 inner_half_size = max(
+        half_size - vec2(inset),
+        vec2(0.0)
+    );
 
-    float inner_radius =
-        max(
-            rect_radius - inset,
-            0.0
-        );
+    float inner_radius = max(
+        rect_radius - inset,
+        0.0
+    );
 
     float inner_distance = rounded_rect_distance(
         p,
@@ -95,30 +104,30 @@ void main() {
         inner_radius
     );
 
-    float inner_alpha =
-        1.0 - smoothstep(
-            0.0,
-            1.0,
-            inner_distance
-        );
+    float inner_alpha = coverage(
+        inner_distance
+    );
 
-    vec4 result =
-        mix(
-            border_color,
-            color,
-            inner_alpha
-        );
+    vec4 result = mix(
+        border_color,
+        color,
+        inner_alpha
+    );
 
+    float alpha =
+        result.a *
+        outer_alpha;
+
+    // Premultiplied alpha.
     gl_FragColor = vec4(
-        result.rgb,
-        result.a * outer_alpha
+        result.rgb * alpha,
+        alpha
     );
 }
 `
 
 
 // Text vertex shader
-
 TEXT_VERTEX_SHADER :: `
 attribute vec2 position;
 attribute vec2 tex_coord;
@@ -142,9 +151,12 @@ void main() {
 
 
 // Text fragment shader
-
 TEXT_FRAGMENT_SHADER :: `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
 precision mediump float;
+#endif
 
 uniform sampler2D glyph_texture;
 uniform vec4 text_color;
@@ -157,9 +169,13 @@ void main() {
         v_tex_coord
     ).a;
 
+    float alpha =
+        text_color.a *
+        coverage;
+
     gl_FragColor = vec4(
-        text_color.rgb,
-        text_color.a * coverage
+        text_color.rgb * alpha,
+        alpha
     );
 }
 `

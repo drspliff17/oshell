@@ -15,6 +15,7 @@ GL_COLOR_BUFFER_BIT :: u32(0x00000000)
 
 GL_FLOAT :: u32(0x1406)
 GL_UNSIGNED_BYTE :: u32(0x1401)
+GL_ONE :: u32(1)
 
 // Primitive types
 
