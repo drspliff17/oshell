@@ -5,48 +5,55 @@ import wl "wayland"
 
 App :: struct {
 	// IPC
-	hypr:           Hyprland_IPC,
-	ipc:            Oshell_IPC,
+	hypr:               Hyprland_IPC,
+	ipc:                Oshell_IPC,
 
 	// Font Rendering State
-	font:           Font,
+	font:               Font,
+
+	// Config
+	config:             Config,
 
 	// Media - MPRIS
-	media:          Media_State,
+	media:              Media_State,
 
 	// Volume
-	volume:         Volume_State,
+	volume:             Volume_State,
 
 	// Layers
-	layers:         [dynamic]^Layer,
-	current_layer:  ^Layer,
+	layers:             [dynamic]^Layer,
+	current_layer:      ^Layer,
 
 	// Render State
-	using renderer: Render_State,
+	using renderer:     Render_State,
 
 	// Wayland globals
-	display:        ^wl.display,
-	registry:       ^wl.registry,
-	compositor:     ^wl.compositor,
-	layer_shell:    ^wl.layer_shell_v1,
+	display:            ^wl.display,
+	registry:           ^wl.registry,
+	compositor:         ^wl.compositor,
+	layer_shell:        ^wl.layer_shell_v1,
 
 	// Outputs
-	hdmi_output:    ^wl.output,
-	edp_output:     ^wl.output,
+	hdmi_output:        ^wl.output,
+	edp_output:         ^wl.output,
 
 	// EGL shared state
-	egl_display:    EGLDisplay,
-	egl_config:     EGLConfig,
-	egl_context:    EGLContext,
+	egl_display:        EGLDisplay,
+	egl_config:         EGLConfig,
+	egl_context:        EGLContext,
 
-	//
-	font_face:      FT_Face,
+	// FreeType
+	font_library:       FT_Library,
+	font_face:          FT_Face,
 
 	// Output configuration
-	output_mode:    OUTPUT_MODES,
+	output_mode:        OUTPUT_MODES,
 
 	// Lifecycle
-	exit_requested: bool,
+	exit_requested:     bool,
+
+	//
+	config_initialised: bool,
 }
 
 // Returns ^App from context.user_ptr

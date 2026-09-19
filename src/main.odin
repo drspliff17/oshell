@@ -17,6 +17,9 @@ run_app :: proc() {
 	app := App{}
 	context.user_ptr = &app
 
+	config_init(&app)
+	defer config_destroy(&app)
+
 	app.layers = make([dynamic]^Layer)
 	defer delete(app.layers)
 
@@ -33,9 +36,8 @@ run_app :: proc() {
 	if layer == nil do return
 	defer app_destroy_layers(&app)
 
-	font_library, font_ok := app_init_font(&app)
-	if !font_ok do return
-	defer app_destroy_font(&app, font_library)
+	if !app_init_font(&app) do return
+	defer app_destroy_font(&app)
 
 	if !app_init_renderer(&app) do return
 	defer app_destroy_renderer(&app)
