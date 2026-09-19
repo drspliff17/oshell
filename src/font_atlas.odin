@@ -25,19 +25,14 @@ reset_font_atlas :: proc(layer: ^Layer) {
 		GL_UNSIGNED_BYTE,
 		nil,
 	)
-
 	if DEBUG do fmt.println("font atlas reset")
 }
 
 cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bool) {
 	font := &layer.font
-
 	key := Glyph_Key{character, size}
 
-	// Already cached.
-	if glyph, ok := font.glyphs[key]; ok {
-		return glyph, true
-	}
+	if glyph, ok := font.glyphs[key]; ok do return glyph, true
 
 	if FT_Set_Pixel_Sizes(layer.font_face, 0, size) != 0 {
 		fmt.eprintln("Failed to set FreeType pixel size")
@@ -51,7 +46,6 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 
 	face_rec := cast(^FT_FaceRec)layer.font_face
 	slot := face_rec.glyph
-
 	if slot == nil do return {}, false
 
 	width := i32(slot.bitmap.width)
@@ -73,17 +67,16 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 
 	padding := i32(1)
 
-	// Start a new atlas row if this glyph does not fit horizontally.
+	// New Row
 	if font.pen_x + width + padding >= font.width {
 		font.pen_x = padding
 		font.pen_y += font.row_height + padding
 		font.row_height = 0
 	}
 
-	// Atlas full: throw away the cache and begin again.
+	// Atlas full
 	if font.pen_y + height + padding >= font.height {
 		reset_font_atlas(layer)
-
 		font.pen_x = padding
 		font.pen_y = padding
 	}
@@ -109,11 +102,8 @@ cache_glyph :: proc(layer: ^Layer, character: rune, size: FT_UInt) -> (Glyph, bo
 	)
 
 	font.pen_x += width + padding
-
 	if height > font.row_height do font.row_height = height
 
-	// Actually cache it.
 	font.glyphs[key] = glyph
-
 	return glyph, true
 }

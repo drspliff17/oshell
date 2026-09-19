@@ -97,6 +97,9 @@ oshell_ipc_execute :: proc(app: ^App, command: string) -> bool {
 		case "all", "3":
 			return app_set_output_mode(app, .All)
 
+		case "hide", "h":
+			return app_set_output_mode(app, .Hide)
+
 		case "toggle", "t":
 			return app_toggle_output(app)
 
@@ -130,7 +133,6 @@ oshell_ipc_handle :: proc(app: ^App) -> bool {
 	if bytes_read <= 0 do return true
 
 	command := string(buffer[:bytes_read])
-
 	if DEBUG do fmt.println("oshell IPC command:", strings.trim_space(command))
 
 	ok := oshell_ipc_execute(app, command)

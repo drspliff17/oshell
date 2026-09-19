@@ -11,7 +11,6 @@ Media_Widget :: struct {
 
 draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	media := &layer.media
-
 	if !media_visible(media) do return
 
 	title := media_get_title(media)
@@ -37,7 +36,6 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	draw_rect(layer, widget.rect, widget.bg_col)
 
 	// Text
-
 	glUseProgram(layer.text_program)
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
@@ -66,7 +64,7 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	text_height := metrics.ascent + metrics.descent
 	baseline_y := content.y + (content.height - text_height) * 0.5 + metrics.ascent
 
-	// Fits normally.
+	// Fits normally
 	if metrics.width <= content.width {
 		media.scroll_active = false
 		media.scroll_offset = 0
@@ -77,7 +75,7 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 		return
 	}
 
-	// Infinite marquee.
+	// Infinite marquee
 	media.scroll_active = true
 	media.scroll_max = metrics.width + MEDIA_SCROLL_GAP
 

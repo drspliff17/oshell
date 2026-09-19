@@ -13,7 +13,6 @@ MPRIS_PLAYER :: "org.mpris.MediaPlayer2.Player"
 DBUS_PROPERTIES :: "org.freedesktop.DBus.Properties"
 
 MPRIS_PROPERTIES_MATCH :: "type='signal',path='/org/mpris/MediaPlayer2',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'"
-
 MPRIS_NAME_OWNER_MATCH :: "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged'"
 
 Media_Snapshot :: struct {
@@ -66,9 +65,7 @@ media_changed :: proc(media: ^Media_State, snapshot: ^Media_Snapshot) -> bool {
 	return false
 }
 
-media_is_mpris_player :: proc(name: string) -> bool {
-	return strings.has_prefix(name, MPRIS_PREFIX)
-}
+media_is_mpris_player :: proc(name: string) -> bool {return strings.has_prefix(name, MPRIS_PREFIX)}
 
 // sd_bus_list_names() transfers ownership of both the array and every string inside it.
 media_free_names :: proc(names: [^]cstring) {
@@ -79,7 +76,6 @@ media_free_names :: proc(names: [^]cstring) {
 		libc.free(cast(rawptr)names[i])
 		i += 1
 	}
-
 	libc.free(cast(rawptr)names)
 }
 
@@ -368,17 +364,14 @@ media_init :: proc(app: ^App) -> bool {
 
 media_process :: proc(app: ^App) -> bool {
 	media := &app.media
-
 	if media.bus == nil do return true
 
 	for {
 		result := sd_bus_process(media.bus, nil)
-
 		if result < 0 {
 			fmt.eprintln("Media: D-Bus processing failed:", result)
 			return false
 		}
-
 		if result == 0 do break
 	}
 

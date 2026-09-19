@@ -18,7 +18,5 @@ setup_signals :: proc() {
 		return
 	}
 
-	if posix.siginterrupt(.SIGUSR1, true) != .OK {
-		fmt.eprintln("Failed to configure SIGUSR1 interrupt behaviour")
-	}
+	if posix.siginterrupt(.SIGUSR1, true) != .OK do fmt.eprintln("Failed to configure SIGUSR1 interrupt behaviour")
 }

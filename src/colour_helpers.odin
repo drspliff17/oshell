@@ -32,10 +32,8 @@ colour_luminance :: proc(c: Col) -> f32 {
 contrast_ratio :: proc(a: Col, b: Col) -> f32 {
 	l1 := colour_luminance(a)
 	l2 := colour_luminance(b)
-
 	lighter := max(l1, l2)
 	darker := min(l1, l2)
-
 	return (lighter + 0.05) / (darker + 0.05)
 }
 
@@ -48,7 +46,7 @@ get_contrasting_colour :: proc(bg: Col, dark: Col, light: Col) -> Col {
 
 set_alpha :: proc(c: Col, alpha: f32) -> Col {return Col{c.r, c.g, c.b, alpha}}
 
-get_shifted_colours :: proc(amt: i16 = 20) {
+update_shifted_colours :: proc(amt: i16 = 20) {
 	fc := get_contrasting_colour(
 		PYWAL_COLOURS.Color4,
 		{0.22, 0.22, 0.22, 1},

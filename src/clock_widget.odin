@@ -18,7 +18,6 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 	text := fmt.bprintf(buf[:], "%02d:%02d", hour + 1, minute)
 
 	// Background
-
 	glUseProgram(layer.program)
 
 	glUniform2f(layer.resolution_location, f32(layer.width), f32(layer.height))
@@ -32,7 +31,6 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 	draw_rect(layer, clock.rect, clock.bg_col)
 
 	// Text
-
 	glUseProgram(layer.text_program)
 
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))

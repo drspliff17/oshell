@@ -25,7 +25,6 @@ FT_UShort :: u16
 FT_Pos :: i64
 FT_Fixed :: i64
 
-
 // Glyph loading flags
 
 FT_LOAD_DEFAULT :: i32(0)
@@ -38,21 +37,16 @@ foreign freetype_lib {
 	// Library lifecycle
 
 	FT_Init_FreeType :: proc(alibrary: ^FT_Library) -> FT_Error ---
-
 	FT_Done_FreeType :: proc(library: FT_Library) -> FT_Error ---
-
 
 	// Face lifecycle
 
 	FT_New_Face :: proc(library: FT_Library, pathname: cstring, face_index: FT_Long, aface: ^FT_Face) -> FT_Error ---
-
 	FT_Done_Face :: proc(face: FT_Face) -> FT_Error ---
-
 
 	// Face sizing
 
 	FT_Set_Pixel_Sizes :: proc(face: FT_Face, pixel_width: FT_UInt, pixel_height: FT_UInt) -> FT_Error ---
-
 
 	// Glyph loading
 
@@ -126,7 +120,6 @@ FT_Outline :: struct {
 
 
 // Internal list representation used by FT_FaceRec
-
 FT_ListRec :: struct {
 	head: rawptr,
 	tail: rawptr,
@@ -134,7 +127,6 @@ FT_ListRec :: struct {
 
 
 // Glyph slot representation
-
 FT_GlyphSlotRec :: struct {
 	library:           rawptr,
 	face:              rawptr,
@@ -162,7 +154,6 @@ FT_GlyphSlotRec :: struct {
 
 
 // Face representation
-
 FT_FaceRec :: struct {
 	num_faces:           FT_Long,
 	face_index:          FT_Long,
@@ -199,7 +190,6 @@ FT_FaceRec :: struct {
 
 
 // Application glyph cache key
-
 Glyph_Key :: struct {
 	character: rune,
 	size:      FT_UInt,
@@ -207,7 +197,6 @@ Glyph_Key :: struct {
 
 
 // Application font atlas
-
 Font :: struct {
 	texture:    u32,
 	width:      i32,
@@ -220,7 +209,6 @@ Font :: struct {
 
 
 // Cached glyph information
-
 Glyph :: struct {
 	x:         i32,
 	y:         i32,

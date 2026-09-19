@@ -10,6 +10,4 @@ app_init_hyprland :: proc(app: ^App) -> bool {
 	return true
 }
 
-app_destroy_hyprland :: proc(app: ^App) {
-	hyprland_disconnect(&app.hypr)
-}
+app_destroy_hyprland :: proc(app: ^App) {hyprland_disconnect(&app.hypr)}

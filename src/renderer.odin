@@ -4,11 +4,29 @@ import "core:fmt"
 import wl "wayland"
 
 request_redraw :: proc(layer: ^Layer) {
+	if layer == nil do return
+	if layer.app.output_mode == .Hide do return
+	if !layer.configured do return
+	if layer.egl_surface == nil do return
+
 	render(layer)
 }
 
+request_redraw_all :: proc(app: ^App) {
+	for layer in app.layers {
+		if !layer.configured do continue
+		if layer.egl_surface == nil do continue
+		request_redraw(layer)
+	}
+}
+
 render :: proc(layer: ^Layer) {
+	if layer == nil do return
+	if layer.app.output_mode == .Hide do return
+	if !layer.configured do return
+	if layer.egl_surface == nil do return
 	if !layer_make_current(layer) do return
+
 	glViewport(0, 0, i32(layer.width), i32(layer.height))
 
 	glClearColor(0.0, 0.0, 0.0, 0.0)

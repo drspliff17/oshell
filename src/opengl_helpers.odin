@@ -10,7 +10,6 @@ compile_shader :: proc(kind: u32, source: string) -> u32 {
 	defer delete(source_cstr)
 
 	glShaderSource(shader, 1, &source_cstr, nil)
-
 	glCompileShader(shader)
 
 	success: i32
@@ -25,7 +24,6 @@ compile_shader :: proc(kind: u32, source: string) -> u32 {
 			defer delete(log)
 
 			glGetShaderInfoLog(shader, log_length, nil, &log[0])
-
 			fmt.eprintln("Shader compilation failed:")
 			fmt.eprintln(string(log))
 		}
@@ -37,18 +35,11 @@ compile_shader :: proc(kind: u32, source: string) -> u32 {
 
 create_program :: proc(vertex_source, fragment_source: string) -> u32 {
 	vertex_shader := compile_shader(GL_VERTEX_SHADER, vertex_source)
-
 	fragment_shader := compile_shader(GL_FRAGMENT_SHADER, fragment_source)
 
 	if vertex_shader == 0 || fragment_shader == 0 {
-		if vertex_shader != 0 {
-			glDeleteShader(vertex_shader)
-		}
-
-		if fragment_shader != 0 {
-			glDeleteShader(fragment_shader)
-		}
-
+		if vertex_shader != 0 do glDeleteShader(vertex_shader)
+		if fragment_shader != 0 do glDeleteShader(fragment_shader)
 		return 0
 	}
 
@@ -58,7 +49,6 @@ create_program :: proc(vertex_source, fragment_source: string) -> u32 {
 	glAttachShader(program, fragment_shader)
 
 	glBindAttribLocation(program, 0, "position")
-
 	glLinkProgram(program)
 
 	success: i32
@@ -73,7 +63,6 @@ create_program :: proc(vertex_source, fragment_source: string) -> u32 {
 			defer delete(log)
 
 			glGetProgramInfoLog(program, log_length, nil, &log[0])
-
 			fmt.eprintln("Program linking failed:")
 			fmt.eprintln(string(log))
 		}

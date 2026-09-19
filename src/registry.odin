@@ -25,7 +25,6 @@ registry_global :: proc "cdecl" (
 			&wl.compositor_interface,
 			min(version, 4),
 		)
-
 		return
 	}
 
@@ -36,7 +35,6 @@ registry_global :: proc "cdecl" (
 			&wl.layer_shell_v1_interface,
 			min(version, 1),
 		)
-
 		return
 	}
 
@@ -47,16 +45,13 @@ registry_global :: proc "cdecl" (
 			&wl.output_interface,
 			min(version, 4),
 		)
-
 		wl.output_add_listener(output, &output_listener, app)
-
 		return
 	}
 }
 
 registry_global_remove :: proc "cdecl" (data: rawptr, registry: ^wl.registry, name: uint) {
 	context = runtime.default_context()
-
 	app := cast(^App)data
 	context.user_ptr = app
 }

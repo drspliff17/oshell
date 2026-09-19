@@ -7,24 +7,24 @@ import wl "wayland"
 Layer :: struct {
 	using app:      ^App,
 
-	// Output this layer belongs to.
+	// Output this layer belongs to
 	output:         ^wl.output,
 
-	// Wayland surface.
+	// Wayland surface
 	surface:        ^wl.surface,
 	layer_surface:  ^wl.layer_surface_v1,
 
-	// EGL surface.
+	// EGL surface
 	egl_window:     ^wl.egl_window,
 	egl_surface:    EGLSurface,
 
-	// Configure state.
+	// Configure state
 	serial:         u32,
 	width:          u32,
 	height:         u32,
 	configured:     bool,
 
-	// Frame lifecycle.
+	// Frame lifecycle
 	frame_pending:  bool,
 	frame_callback: ^wl.callback,
 }
@@ -52,7 +52,6 @@ layer_surface_configure :: proc "cdecl" (
 	layer.configured = true
 
 	wl.layer_surface_v1_ack_configure(surface, serial)
-
 	if layer.egl_window != nil do wl.egl_window_resize(layer.egl_window, int(width), int(height), 0, 0)
 
 	if DEBUG do fmt.println("configure:", width, height, "serial:", serial)
@@ -63,7 +62,6 @@ layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v
 
 	layer := cast(^Layer)data
 	context.user_ptr = layer.app
-
 	layer.configured = false
 
 	if DEBUG do fmt.println("layer surface closed")
@@ -85,7 +83,6 @@ layer_make_current :: proc(layer: ^Layer) -> bool {
 	}
 
 	layer.app.current_layer = layer
-
 	return true
 }
 
@@ -108,6 +105,7 @@ layer_create_surface :: proc(layer: ^Layer, output: ^wl.output) -> bool {
 		.overlay,
 		"oshell",
 	)
+
 	if layer.layer_surface == nil {
 		fmt.eprintln("Failed to create layer surface")
 
@@ -129,7 +127,6 @@ layer_create_surface :: proc(layer: ^Layer, output: ^wl.output) -> bool {
 		fmt.eprintln("Failed to flush layer surface commit")
 		return false
 	}
-
 	if DEBUG do fmt.println("waiting for layer configure")
 
 	for !layer.configured {

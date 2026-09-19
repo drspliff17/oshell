@@ -11,31 +11,31 @@ MEDIA_SCROLL_STEP :: 3.0
 MEDIA_SCROLL_GAP :: 24.0
 
 Media_State :: struct {
-	// Currently selected MPRIS player.
+	// Currently selected MPRIS player
 	player:          [MEDIA_PLAYER_CAPACITY]u8,
 
-	// Current media metadata.
+	// Current media metadata
 	artist:          [MEDIA_ARTIST_CAPACITY]u8,
 	title:           [MEDIA_TITLE_CAPACITY]u8,
 
-	// Session D-Bus connection.
+	// Session D-Bus connection
 	bus:             ^sd_bus,
 	fd:              posix.FD,
 
-	// Signal matches.
+	// Signal matches
 	properties_slot: ^sd_bus_slot,
 	name_owner_slot: ^sd_bus_slot,
 
-	// Title marquee.
+	// Title marquee
 	scroll_offset:   f32,
 	scroll_max:      f32,
 
-	// String lengths.
+	// String lengths
 	player_len:      int,
 	artist_len:      int,
 	title_len:       int,
 
-	// State.
+	// State
 	scroll_active:   bool,
 	playing:         bool,
 	dirty:           bool,
@@ -49,14 +49,11 @@ media_reset_scroll :: proc(media: ^Media_State) {
 
 media_scroll_tick :: proc(app: ^App) {
 	media := &app.media
-
 	if !media.scroll_active do return
 	if media.scroll_max <= 0 do return
 
 	media.scroll_offset += MEDIA_SCROLL_STEP
-
 	if media.scroll_offset >= media.scroll_max do media.scroll_offset -= media.scroll_max
-
 	request_redraw_all(app)
 }
 

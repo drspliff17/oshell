@@ -51,7 +51,7 @@ Shifted_Colours :: struct {
 
 COLOURS: Shifted_Colours
 
-update_colours :: proc() {
+update_colours :: proc(alpha: f32 = 0.96) {
 	if !os.exists(PYWAL_PATH) do fmt.panicf("Could not find the given file: %s\n", PYWAL_PATH)
 
 	data, read_err := os.read_entire_file(PYWAL_PATH, context.allocator)
@@ -69,26 +69,22 @@ update_colours :: proc() {
 
 	for line in lines {
 		if line == "" do continue
-
 		parts := strings.split(line, ",", context.allocator)
 		if len(parts) != 3 {
 			delete(parts)
 			continue
 		}
-
 		r, r_ok := strconv.parse_int(strings.trim_space(parts[0]))
 		g, g_ok := strconv.parse_int(strings.trim_space(parts[1]))
 		b, b_ok := strconv.parse_int(strings.trim_space(parts[2]))
 		delete(parts)
-
 		if !r_ok || !g_ok || !b_ok do continue
 
 		if i < 16 {
 			c := rgb_to_col(r, g, b)
-			colours[i] = Col{c.r, c.g, c.b, 0.96}
+			colours[i] = Col{c.r, c.g, c.b, alpha}
 			i += 1
 		}
-
 		if i >= 16 do break
 	}
 
@@ -113,5 +109,5 @@ update_colours :: proc() {
 		Color15    = colours[15],
 	}
 
-	get_shifted_colours()
+	update_shifted_colours()
 }

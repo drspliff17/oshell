@@ -9,7 +9,6 @@ process_updates :: proc(app: ^App) {
 	if g_reload_colours {
 		update_colours()
 		g_reload_colours = false
-
 		request_redraw_all(app)
 	}
 }
@@ -18,7 +17,6 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 	app := layer.app
 
 	wayland_fd := wl.display_get_fd(app.display)
-
 	fds := [4]posix.pollfd {
 		{fd = posix.FD(wayland_fd), events = {.IN}},
 		{fd = app.hypr.fd, events = {.IN}},
@@ -29,8 +27,8 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 	test_start := time.tick_now()
 
 	for {
-		// TEST: Duration mem test
 
+		// TEST: Duration mem test
 		if test_duration > 0 {
 			if time.tick_since(test_start) >= test_duration {
 				if DEBUG do fmt.println("TEST: event loop timeout")
@@ -53,34 +51,19 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 		fds[3].revents = {}
 
 		timeout := milliseconds_until_next_minute()
-
-		if app.hypr.redraw_pending {
-			timeout = min(timeout, 5)
-		}
-
-		// Media marquee
-
-		if app.media.scroll_active {
-			timeout = min(timeout, MEDIA_SCROLL_INTERVAL)
-		}
+		if app.hypr.redraw_pending do timeout = min(timeout, 5)
+		if app.media.scroll_active do timeout = min(timeout, MEDIA_SCROLL_INTERVAL)
 
 		// TEST: Duration mem test
-
 		if test_duration > 0 {
 			remaining := test_duration - time.tick_since(test_start)
-
 			if remaining <= 0 {
 				wl.display_cancel_read(app.display)
-
 				if DEBUG do fmt.println("TEST: event loop timeout")
-
 				return
 			}
-
 			test_timeout := int(time.duration_milliseconds(remaining))
-
 			if test_timeout < 1 do test_timeout = 1
-
 			timeout = min(timeout, i32(test_timeout))
 		}
 
@@ -88,27 +71,21 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 
 		if result < 0 {
 			wl.display_cancel_read(app.display)
-
 			if posix.get_errno() == .EINTR {
 				process_updates(app)
 				continue
 			}
-
 			return
 		}
 
 		// TEST: Duration mem test
-
 		if test_duration > 0 && time.tick_since(test_start) >= test_duration {
 			wl.display_cancel_read(app.display)
-
 			if DEBUG do fmt.println("TEST: event loop timeout")
-
 			return
 		}
 
 		// Timer
-
 		if result == 0 {
 			wl.display_cancel_read(app.display)
 
@@ -121,12 +98,10 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 			}
 
 			process_updates(app)
-
 			continue
 		}
 
 		// Wayland
-
 		if .ERR in fds[0].revents || .HUP in fds[0].revents || .NVAL in fds[0].revents {
 			wl.display_cancel_read(app.display)
 			return
@@ -141,43 +116,26 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 		if wl.display_dispatch_pending(app.display) < 0 do return
 
 		// Hyprland
-
-		if .ERR in fds[1].revents || .HUP in fds[1].revents || .NVAL in fds[1].revents {
-			return
-		}
-
+		if .ERR in fds[1].revents || .HUP in fds[1].revents || .NVAL in fds[1].revents do return
 		if .IN in fds[1].revents {
-			if !hyprland_read_events(&app.hypr, layer) {
-				return
-			}
+			if !hyprland_read_events(&app.hypr, layer) do return
 		}
 
 		// oshell IPC
-
-		if .ERR in fds[2].revents || .HUP in fds[2].revents || .NVAL in fds[2].revents {
-			return
-		}
-
+		if .ERR in fds[2].revents || .HUP in fds[2].revents || .NVAL in fds[2].revents do return
 		if .IN in fds[2].revents {
-			if !oshell_ipc_handle(app) {
-				fmt.eprintln("oshell IPC: Failed to handle connection")
-			}
+			if !oshell_ipc_handle(app) do fmt.eprintln("oshell IPC: Failed to handle connection")
 		}
 
 		if app.exit_requested do return
 
 		// Media D-Bus
-
 		if app.media.fd >= 0 {
 			if .ERR in fds[3].revents || .HUP in fds[3].revents || .NVAL in fds[3].revents {
 				fmt.eprintln("Media: D-Bus connection lost")
-
 				return
 			}
-
-			if .IN in fds[3].revents {
-				if !media_process(app) do return
-			}
+			if .IN in fds[3].revents do if !media_process(app) do return
 		}
 
 		process_updates(app)

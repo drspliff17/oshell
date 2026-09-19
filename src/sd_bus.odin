@@ -51,71 +51,47 @@ foreign systemd {
 	// Connection
 
 	sd_bus_open_user :: proc(ret: ^^sd_bus) -> c.int ---
-
 	sd_bus_unref :: proc(bus: ^sd_bus) -> ^sd_bus ---
-
 	sd_bus_get_fd :: proc(bus: ^sd_bus) -> c.int ---
-
 	sd_bus_get_events :: proc(bus: ^sd_bus) -> c.int ---
-
 	sd_bus_get_timeout :: proc(bus: ^sd_bus, timeout_usec: ^u64) -> c.int ---
-
 	sd_bus_process :: proc(bus: ^sd_bus, ret_message: ^^sd_bus_message) -> c.int ---
-
 	sd_bus_flush :: proc(bus: ^sd_bus) -> c.int ---
-
 
 	// Match / signal handling
 
 	sd_bus_add_match :: proc(bus: ^sd_bus, slot: ^^sd_bus_slot, match: cstring, callback: sd_bus_message_handler_t, userdata: rawptr) -> c.int ---
-
 	sd_bus_slot_unref :: proc(slot: ^sd_bus_slot) -> ^sd_bus_slot ---
-
 
 	// Bus names
 
 	sd_bus_list_names :: proc(bus: ^sd_bus, acquired: ^[^]cstring, activatable: ^[^]cstring) -> c.int ---
 
-
 	// Property access
 
 	sd_bus_get_property :: proc(bus: ^sd_bus, destination: cstring, path: cstring, interface: cstring, member: cstring, error: ^sd_bus_error, reply: ^^sd_bus_message, expected_type: cstring) -> c.int ---
-
 
 	// Message lifetime
 
 	sd_bus_message_unref :: proc(message: ^sd_bus_message) -> ^sd_bus_message ---
 
-
 	// Message inspection
 
 	sd_bus_message_get_sender :: proc(message: ^sd_bus_message) -> cstring ---
-
 	sd_bus_message_get_path :: proc(message: ^sd_bus_message) -> cstring ---
-
 	sd_bus_message_get_interface :: proc(message: ^sd_bus_message) -> cstring ---
-
 	sd_bus_message_get_member :: proc(message: ^sd_bus_message) -> cstring ---
-
 	sd_bus_message_get_signature :: proc(message: ^sd_bus_message, complete: c.int) -> cstring ---
-
 
 	// Message reading
 
 	sd_bus_message_read_basic :: proc(message: ^sd_bus_message, kind: u8, ret: rawptr) -> c.int ---
-
 	sd_bus_message_enter_container :: proc(message: ^sd_bus_message, kind: u8, contents: cstring) -> c.int ---
-
 	sd_bus_message_exit_container :: proc(message: ^sd_bus_message) -> c.int ---
-
 	sd_bus_message_peek_type :: proc(message: ^sd_bus_message, ret_type: ^u8, ret_contents: ^cstring) -> c.int ---
-
 	sd_bus_message_skip :: proc(message: ^sd_bus_message, types: cstring) -> c.int ---
-
 	sd_bus_message_at_end :: proc(message: ^sd_bus_message, complete: c.int) -> c.int ---
-
 	sd_bus_message_rewind :: proc(message: ^sd_bus_message, complete: c.int) -> c.int ---
-
 
 	// Error handling
 
