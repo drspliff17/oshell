@@ -11,7 +11,7 @@ app_init_font :: proc(app: ^App) -> (FT_Library, bool) {
 		return nil, false
 	}
 
-	font_path := "/usr/share/fonts/TTF/JetBrainsMono-Bold.ttf"
+	font_path := "/home/drspliff/.local/share/fonts/BigBlueTerm437NerdFontMono-Regular.ttf"
 	font_path_cstr := strings.clone_to_cstring(font_path)
 	defer delete(font_path_cstr)
 

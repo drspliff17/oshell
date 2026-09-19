@@ -13,7 +13,6 @@ draw_submap :: proc(layer: ^Layer, widget: Submap_Widget) {
 
 	// Background
 	glUseProgram(layer.program)
-
 	glUniform2f(layer.resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.vbo)
 
@@ -26,7 +25,6 @@ draw_submap :: proc(layer: ^Layer, widget: Submap_Widget) {
 
 	// Text
 	glUseProgram(layer.text_program)
-
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
 
@@ -54,9 +52,8 @@ draw_submap :: proc(layer: ^Layer, widget: Submap_Widget) {
 	content := rect_content(widget.rect)
 
 	metrics := measure_text(layer, text, widget.text_size)
-	text_height := metrics.ascent + metrics.descent
 	text_x := content.x + (content.width - metrics.width) * 0.5
-	baseline_y := content.y + (content.height - text_height) * 0.5 + metrics.ascent
+	baseline_y := centered_text_baseline(layer, content, widget.text_size)
 
 	draw_text(layer, text, Vec2{text_x, baseline_y}, widget.text_col, widget.text_size)
 }

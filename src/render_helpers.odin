@@ -75,6 +75,20 @@ rect_content :: proc(rect: Rect) -> Rect {
 	}
 }
 
+snap_pixel :: proc(value: f32) -> f32 {
+	if value >= 0 do return f32(i32(value + 0.5))
+	return f32(i32(value - 0.5))
+}
+
+centered_text_baseline :: proc(layer: ^Layer, rect: Rect, size: FT_UInt) -> f32 {
+	// Fixed ascender + descender reference so vertical positioning
+	// does not depend on the actual characters being drawn.
+	metrics := measure_text(layer, "Hg", size)
+	text_height := metrics.ascent + metrics.descent
+
+	return snap_pixel(rect.y + (rect.height - text_height) * 0.5 + metrics.ascent)
+}
+
 draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
 	if rect.width <= 0 || rect.height <= 0 do return
 
@@ -83,6 +97,7 @@ draw_rect :: proc(layer: ^Layer, rect: Rect, col: Col) {
 	border_col := rect.border_col
 
 	if border_size <= 0 do border_col = col
+
 	vertices := [12]f32 {
 		rect.x,
 		rect.y,
@@ -124,8 +139,13 @@ draw_text :: proc(layer: ^Layer, text: string, pos: Vec2, col: Col, size: FT_UIn
 	glUniform1i(layer.text_texture_location, 0)
 	glUniform4f(layer.text_color_location, col.r, col.g, col.b, col.a)
 
-	pen_x := pos.x
-	for character in text do pen_x = draw_glyph(layer, character, size, pen_x, pos.y)
+	// Always begin text on an exact physical pixel.
+	pen_x := snap_pixel(pos.x)
+	baseline_y := snap_pixel(pos.y)
+
+	for character in text {
+		pen_x = draw_glyph(layer, character, size, pen_x, baseline_y)
+	}
 }
 
 draw_glyph :: proc(
@@ -140,8 +160,11 @@ draw_glyph :: proc(
 
 	if glyph.width == 0 || glyph.height == 0 do return pen_x + f32(glyph.advance)
 
-	x := pen_x + f32(glyph.bearing_x)
-	y := baseline_y - f32(glyph.bearing_y)
+	// FreeType glyph bitmaps are pixel rasters.
+	// Keep their screen quads aligned to physical pixels as well.
+	x := snap_pixel(pen_x + f32(glyph.bearing_x))
+
+	y := snap_pixel(baseline_y - f32(glyph.bearing_y))
 
 	w := f32(glyph.width)
 	h := f32(glyph.height)
@@ -180,7 +203,9 @@ draw_glyph :: proc(
 	}
 
 	glBufferSubData(GL_ARRAY_BUFFER, 0, size_of(vertices), &vertices[0])
+
 	glDrawArrays(GL_TRIANGLES, 0, 6)
+
 	return pen_x + f32(glyph.advance)
 }
 
@@ -189,14 +214,17 @@ measure_text :: proc(layer: ^Layer, text: string, size: FT_UInt = 16) -> Text_Me
 
 	for character in text {
 		glyph, ok := cache_glyph(layer, character, size)
+
 		if !ok do continue
 
 		metrics.width += f32(glyph.advance)
 
 		ascent := f32(glyph.bearing_y)
+
 		descent := f32(glyph.height) - f32(glyph.bearing_y)
 
 		metrics.ascent = max(metrics.ascent, ascent)
+
 		metrics.descent = max(metrics.descent, descent)
 	}
 

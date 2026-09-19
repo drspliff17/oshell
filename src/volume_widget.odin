@@ -11,11 +11,7 @@ Volume_Widget :: struct {
 
 volume_get_text :: proc(volume: ^Volume_State, buffer: []u8) -> string {
 	if !volume_available(volume) do return ""
-
-	if volume_is_muted(volume) {
-		return fmt.bprintf(buffer, " %d%%", volume_get_percent(volume))
-	}
-
+	if volume_is_muted(volume) do return fmt.bprintf(buffer, " %d%%", volume_get_percent(volume))
 	return fmt.bprintf(buffer, " %d%%", volume_get_percent(volume))
 }
 
@@ -44,6 +40,7 @@ draw_volume :: proc(layer: ^Layer, widget: Volume_Widget) {
 	glUseProgram(layer.text_program)
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
+
 	glEnableVertexAttribArray(u32(layer.text_position_location))
 	glEnableVertexAttribArray(u32(layer.text_uv_location))
 
@@ -68,11 +65,8 @@ draw_volume :: proc(layer: ^Layer, widget: Volume_Widget) {
 	content := rect_content(widget.rect)
 	metrics := measure_text(layer, text, widget.text_size)
 
-	baseline_metrics := measure_text(layer, "Hg", widget.text_size)
-	text_height := baseline_metrics.ascent + baseline_metrics.descent
-
 	text_x := content.x + (content.width - metrics.width) * 0.5
-	baseline_y := content.y + (content.height - text_height) * 0.5 + baseline_metrics.ascent
+	baseline_y := centered_text_baseline(layer, content, widget.text_size)
 
 	draw_text(layer, text, Vec2{text_x, baseline_y}, widget.text_col, widget.text_size)
 }

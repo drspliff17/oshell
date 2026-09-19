@@ -62,14 +62,8 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 	)
 
 	content := rect_content(widget.rect)
-
 	metrics := measure_text(layer, text, widget.size)
-
-	// Fixed ascender + descender sample for vertical positioning
-	baseline_metrics := measure_text(layer, "Hg", widget.size)
-
-	text_height := baseline_metrics.ascent + baseline_metrics.descent
-	baseline_y := content.y + (content.height - text_height) * 0.5 + baseline_metrics.ascent
+	baseline_y := centered_text_baseline(layer, content, widget.size)
 
 	// Fits normally
 	if metrics.width <= content.width {

@@ -29,7 +29,6 @@ draw_workspaces :: proc(layer: ^Layer, widget: Workspace_Widget) {
 
 	// Rectangles
 	glUseProgram(layer.program)
-
 	glUniform2f(layer.resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.vbo)
 
@@ -57,10 +56,8 @@ draw_workspaces :: proc(layer: ^Layer, widget: Workspace_Widget) {
 
 	// Text
 	glUseProgram(layer.text_program)
-
 	glUniform2f(layer.text_resolution_location, f32(layer.width), f32(layer.height))
 	glBindBuffer(GL_ARRAY_BUFFER, layer.text_vbo)
-
 	glEnableVertexAttribArray(u32(layer.text_position_location))
 	glEnableVertexAttribArray(u32(layer.text_uv_location))
 
@@ -82,17 +79,21 @@ draw_workspaces :: proc(layer: ^Layer, widget: Workspace_Widget) {
 		cast(rawptr)(uintptr(2 * size_of(f32))),
 	)
 
+	workspace_rect := Rect {
+		y      = y,
+		width  = widget.size,
+		height = widget.size,
+	}
+
+	baseline_y := centered_text_baseline(layer, workspace_rect, widget.text_size)
+
 	for workspace, i in state.workspaces {
 		x := start_x + f32(i) * (widget.size + widget.gap)
-
 		buf: [16]u8
 
 		text := fmt.bprintf(buf[:], "%d", workspace)
 		metrics := measure_text(layer, text, widget.text_size)
-		text_height := metrics.ascent + metrics.descent
-
 		text_x := x + (widget.size - metrics.width) * 0.5
-		baseline_y := y + (widget.size - text_height) * 0.5 + metrics.ascent
 
 		text_col := widget.text_col
 		if workspace == state.active_workspace do text_col = widget.active_text_col

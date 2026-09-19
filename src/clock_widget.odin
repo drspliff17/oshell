@@ -13,8 +13,8 @@ Clock_Widget :: struct {
 draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 	now := time.now()
 	hour, minute, _ := time.clock_from_time(now)
-	buf: [16]u8
 
+	buf: [16]u8
 	text := fmt.bprintf(buf[:], "%02d:%02d", hour + 1, minute)
 
 	// Background
@@ -58,12 +58,10 @@ draw_clock :: proc(layer: ^Layer, clock: Clock_Widget) {
 	)
 
 	content := rect_content(clock.rect)
-
 	metrics := measure_text(layer, text, clock.size)
-	text_height := metrics.ascent + metrics.descent
 
 	text_x := content.x + (content.width - metrics.width) * 0.5
-	baseline_y := content.y + (content.height - text_height) * 0.5 + metrics.ascent
+	baseline_y := centered_text_baseline(layer, content, clock.size)
 
 	draw_text(layer, text, Vec2{text_x, baseline_y}, clock.text_col, clock.size)
 }
