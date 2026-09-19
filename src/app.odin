@@ -59,6 +59,29 @@ App :: struct {
 // Returns ^App from context.user_ptr
 get_app :: proc() -> ^App {return cast(^App)context.user_ptr}
 
+app_update_fullscreen_output :: proc(app: ^App) {
+	if !app.config.fullscreen_output_switching do return
+
+	preferred := app_preferred_output(app)
+	if preferred == nil {
+		if app.output_mode != .Hide do _ = app_set_output_mode(app, .Hide)
+		return
+	}
+
+	if !hyprland_preferred_fullscreen(app) {
+		if app.output_mode != .Preferred do _ = app_set_output_mode(app, .Preferred)
+		return
+	}
+
+	inverted := app_inverted_output(app)
+	if inverted != nil && inverted != preferred && !hyprland_inverted_fullscreen(app) {
+		if app.output_mode != .Inverted do _ = app_set_output_mode(app, .Inverted)
+		return
+	}
+
+	if app.output_mode != .Hide do _ = app_set_output_mode(app, .Hide)
+}
+
 app_preferred_output :: proc(app: ^App) -> ^wl.output {
 	if app.hdmi_output != nil do return app.hdmi_output
 	return app.edp_output

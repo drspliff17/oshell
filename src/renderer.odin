@@ -118,16 +118,13 @@ render :: proc(layer: ^Layer) {
 		media_text_buf: [1024]u8
 		media_text := title
 
-		if artist != "" {
-			media_text = fmt.bprintf(media_text_buf[:], "%s - %s", artist, title)
-		}
+		if artist != "" do media_text = fmt.bprintf(media_text_buf[:], "%s - %s", artist, title)
 
 		media_gap: f32 = 5
 		media_padding: f32 = 5
 		media_max_width: f32 = 300
 
 		media_metrics := measure_text(layer, media_text, font_size)
-
 		media_width := min(media_metrics.width + media_padding * 2, media_max_width)
 
 		draw_media_widget(

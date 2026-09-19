@@ -8,27 +8,51 @@ import "core:strconv"
 import "core:strings"
 import "core:sys/posix"
 
+HYPR_HDMI_MONITOR :: "HDMI-A-1"
+HYPR_EDP_MONITOR :: "eDP-1"
+HYPR_MONITOR_NAME_CAPACITY :: 128
+
 Hyprland_State :: struct {
-	workspaces:       [dynamic]int,
-	submap:           [128]u8,
-	submap_len:       int,
-	active_workspace: int,
+	workspaces:            [dynamic]int,
+	fullscreen_workspaces: [dynamic]int,
+	submap:                [128]u8,
+	submap_len:            int,
+	focused_monitor:       [HYPR_MONITOR_NAME_CAPACITY]u8,
+	focused_monitor_len:   int,
+	active_workspace:      int,
+	hdmi_workspace:        int,
+	edp_workspace:         int,
+	hdmi_fullscreen:       bool,
+	edp_fullscreen:        bool,
 }
 
 Hyprland_IPC :: struct {
-	buffer:         [8192]u8,
-	state:          Hyprland_State,
-	fd:             posix.FD,
-	length:         int,
-	redraw_pending: bool,
+	buffer:             [8192]u8,
+	state:              Hyprland_State,
+	fd:                 posix.FD,
+	length:             int,
+	redraw_pending:     bool,
+	fullscreen_pending: bool,
 }
 
 Hyprctl_Workspace :: struct {
-	id: int,
+	id:            int,
+	monitor:       string,
+	hasfullscreen: bool,
 }
 
 Hyprctl_Active_Workspace :: struct {
 	id: int,
+}
+
+Hyprctl_Monitor_Workspace :: struct {
+	id: int,
+}
+
+Hyprctl_Monitor :: struct {
+	name:            string,
+	focused:         bool,
+	activeWorkspace: Hyprctl_Monitor_Workspace,
 }
 
 hyprland_set_submap :: proc(state: ^Hyprland_State, submap: string) {
@@ -40,6 +64,32 @@ hyprland_get_submap :: proc(state: ^Hyprland_State) -> string {
 	return string(state.submap[:state.submap_len])
 }
 
+hyprland_set_focused_monitor :: proc(state: ^Hyprland_State, monitor: string) {
+	state.focused_monitor_len = min(len(monitor), len(state.focused_monitor))
+
+	if state.focused_monitor_len > 0 {
+		copy(
+			state.focused_monitor[:state.focused_monitor_len],
+			monitor[:state.focused_monitor_len],
+		)
+	}
+}
+
+hyprland_get_focused_monitor :: proc(state: ^Hyprland_State) -> string {
+	if state.focused_monitor_len == 0 do return ""
+	return string(state.focused_monitor[:state.focused_monitor_len])
+}
+
+hyprland_set_monitor_workspace :: proc(state: ^Hyprland_State, monitor: string, workspace: int) {
+	switch monitor {
+	case HYPR_HDMI_MONITOR:
+		state.hdmi_workspace = workspace
+
+	case HYPR_EDP_MONITOR:
+		state.edp_workspace = workspace
+	}
+}
+
 hyprland_has_workspace :: proc(state: ^Hyprland_State, id: int) -> bool {
 	for workspace in state.workspaces do if workspace == id do return true
 	return false
@@ -48,6 +98,7 @@ hyprland_has_workspace :: proc(state: ^Hyprland_State, id: int) -> bool {
 hyprland_add_workspace :: proc(state: ^Hyprland_State, id: int) {
 	if id <= 0 do return
 	if hyprland_has_workspace(state, id) do return
+
 	append(&state.workspaces, id)
 
 	i := len(state.workspaces) - 1
@@ -65,12 +116,62 @@ hyprland_remove_workspace :: proc(state: ^Hyprland_State, id: int) {
 	}
 }
 
+hyprland_has_fullscreen_workspace :: proc(state: ^Hyprland_State, id: int) -> bool {
+	for workspace in state.fullscreen_workspaces do if workspace == id do return true
+	return false
+}
+
+hyprland_remove_fullscreen_workspace :: proc(state: ^Hyprland_State, id: int) {
+	for workspace, i in state.fullscreen_workspaces {
+		if workspace != id do continue
+
+		ordered_remove(&state.fullscreen_workspaces, i)
+		return
+	}
+}
+
+hyprland_update_visible_fullscreen :: proc(state: ^Hyprland_State) -> bool {
+	hdmi_fullscreen :=
+		state.hdmi_workspace > 0 && hyprland_has_fullscreen_workspace(state, state.hdmi_workspace)
+
+	edp_fullscreen :=
+		state.edp_workspace > 0 && hyprland_has_fullscreen_workspace(state, state.edp_workspace)
+
+	changed := hdmi_fullscreen != state.hdmi_fullscreen || edp_fullscreen != state.edp_fullscreen
+
+	state.hdmi_fullscreen = hdmi_fullscreen
+	state.edp_fullscreen = edp_fullscreen
+
+	return changed
+}
+
+hyprland_preferred_fullscreen :: proc(app: ^App) -> bool {
+	preferred := app_preferred_output(app)
+
+	if preferred == app.hdmi_output do return app.hypr.state.hdmi_fullscreen
+	if preferred == app.edp_output do return app.hypr.state.edp_fullscreen
+	return false
+}
+
+hyprland_inverted_fullscreen :: proc(app: ^App) -> bool {
+	preferred := app_preferred_output(app)
+	inverted := app_inverted_output(app)
+
+	if inverted == nil do return false
+	if inverted == preferred do return false
+
+	if inverted == app.hdmi_output do return app.hypr.state.hdmi_fullscreen
+	if inverted == app.edp_output do return app.hypr.state.edp_fullscreen
+	return false
+}
+
 hyprctl :: proc(args: []string) -> ([]u8, bool) {
 	command := make([]string, len(args) + 1)
 	defer delete(command)
 
 	command[0] = "hyprctl"
 	copy(command[1:], args)
+
 	process, stdout, stderr, err := os.process_exec(
 		os.Process_Desc{command = command},
 		context.allocator,
@@ -81,15 +182,44 @@ hyprctl :: proc(args: []string) -> ([]u8, bool) {
 		delete(stdout)
 		return nil, false
 	}
-
 	return stdout, true
+}
+
+hyprland_refresh_fullscreen_workspaces :: proc(ipc: ^Hyprland_IPC) -> (changed: bool, ok: bool) {
+	data, query_ok := hyprctl([]string{"-j", "workspaces"})
+
+	if !query_ok {
+		fmt.eprintln("Hyprland IPC: Failed to query fullscreen workspaces")
+		return false, false
+	}
+	defer delete(data)
+
+	workspaces: []Hyprctl_Workspace
+
+	if err := json.unmarshal(data, &workspaces); err != nil {
+		fmt.eprintln("Hyprland IPC: Failed to parse fullscreen workspaces")
+		return false, false
+	}
+
+	defer delete(workspaces)
+	for len(ipc.state.fullscreen_workspaces) > 0 do ordered_remove(&ipc.state.fullscreen_workspaces, len(ipc.state.fullscreen_workspaces) - 1)
+
+	for workspace in workspaces {
+		if !workspace.hasfullscreen do continue
+		append(&ipc.state.fullscreen_workspaces, workspace.id)
+	}
+
+	changed = hyprland_update_visible_fullscreen(&ipc.state)
+	return changed, true
 }
 
 hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	ipc.state.workspaces = make([dynamic]int)
+	ipc.state.fullscreen_workspaces = make([dynamic]int)
 
 	// Workspaces
 	workspace_data, workspace_ok := hyprctl([]string{"-j", "workspaces"})
+
 	if !workspace_ok {
 		fmt.eprintln("Hyprland IPC: Failed to query workspaces")
 		return false
@@ -103,10 +233,40 @@ hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	}
 	defer delete(workspaces)
 
-	for workspace in workspaces do hyprland_add_workspace(&ipc.state, workspace.id)
+	for workspace in workspaces {
+		hyprland_add_workspace(&ipc.state, workspace.id)
+		if workspace.hasfullscreen do append(&ipc.state.fullscreen_workspaces, workspace.id)
+	}
+
+	// Monitors
+
+	monitor_data, monitor_ok := hyprctl([]string{"-j", "monitors"})
+
+	if !monitor_ok {
+		fmt.eprintln("Hyprland IPC: Failed to query monitors")
+		return false
+	}
+	defer delete(monitor_data)
+
+	monitors: []Hyprctl_Monitor
+
+	if err := json.unmarshal(monitor_data, &monitors); err != nil {
+		fmt.eprintln("Hyprland IPC: Failed to parse monitors")
+		return false
+	}
+	defer delete(monitors)
+
+	for monitor in monitors {
+		hyprland_set_monitor_workspace(&ipc.state, monitor.name, monitor.activeWorkspace.id)
+		if monitor.focused do hyprland_set_focused_monitor(&ipc.state, monitor.name)
+	}
+
+	hyprland_update_visible_fullscreen(&ipc.state)
 
 	// Active workspace
+
 	active_data, active_ok := hyprctl([]string{"-j", "activeworkspace"})
+
 	if !active_ok {
 		fmt.eprintln("Hyprland IPC: Failed to query active workspace")
 		return false
@@ -114,14 +274,18 @@ hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	defer delete(active_data)
 
 	active: Hyprctl_Active_Workspace
+
 	if err := json.unmarshal(active_data, &active); err != nil {
 		fmt.eprintln("Hyprland IPC: Failed to parse active workspace")
 		return false
 	}
+
 	ipc.state.active_workspace = active.id
 
 	// Submap
+
 	submap_data, submap_ok := hyprctl([]string{"submap"})
+
 	if !submap_ok {
 		fmt.eprintln("Hyprland IPC: Failed to query submap")
 		return false
@@ -133,6 +297,9 @@ hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	if DEBUG {
 		fmt.println("workspaces:", ipc.state.workspaces[:])
 		fmt.println("active workspace:", ipc.state.active_workspace)
+		fmt.println("focused monitor:", hyprland_get_focused_monitor(&ipc.state))
+		fmt.println("HDMI fullscreen:", ipc.state.hdmi_fullscreen)
+		fmt.println("eDP fullscreen:", ipc.state.edp_fullscreen)
 		fmt.println("submap:", hyprland_get_submap(&ipc.state))
 	}
 	return true
@@ -158,9 +325,11 @@ hyprland_connect :: proc(ipc: ^Hyprland_IPC) -> bool {
 	}
 
 	path_buf: [512]u8
+
 	path := fmt.bprintf(path_buf[:], "%s/hypr/%s/.socket2.sock", runtime_dir, signature)
 
 	fd := posix.socket(.UNIX, .STREAM)
+
 	if fd < 0 {
 		fmt.eprintln("Hyprland IPC: Failed to create socket")
 		return false
@@ -189,6 +358,7 @@ hyprland_connect :: proc(ipc: ^Hyprland_IPC) -> bool {
 		posix.close(fd)
 		ipc.fd = posix.FD(-1)
 		delete(ipc.state.workspaces)
+		delete(ipc.state.fullscreen_workspaces)
 		return false
 	}
 
@@ -204,39 +374,70 @@ hyprland_disconnect :: proc(ipc: ^Hyprland_IPC) {
 
 	ipc.length = 0
 	ipc.redraw_pending = false
+	ipc.fullscreen_pending = false
+
 	delete(ipc.state.workspaces)
+	delete(ipc.state.fullscreen_workspaces)
 }
 
 hyprland_handle_event :: proc(layer: ^Layer, event: string) -> bool {
 	event_name, separator, data := strings.partition(event, ">>")
 	if separator == "" do return false
 
-	state := &layer.hypr.state
+	ipc := &layer.hypr
+	state := &ipc.state
 
 	switch event_name {
 	case "workspacev2":
 		id_string, _, _ := strings.partition(data, ",")
 		id, workspace_ok := strconv.parse_int(id_string)
 		if !workspace_ok do return false
+
 		state.active_workspace = id
+		focused_monitor := hyprland_get_focused_monitor(state)
+
+		if focused_monitor != "" {
+			hyprland_set_monitor_workspace(state, focused_monitor, id)
+			if hyprland_update_visible_fullscreen(state) do ipc.fullscreen_pending = true
+		}
 
 	case "focusedmonv2":
-		_, _, workspace_string := strings.partition(data, ",")
+		monitor, separator, workspace_string := strings.partition(data, ",")
+		if separator == "" do return false
+
 		id, focused_ok := strconv.parse_int(workspace_string)
 		if !focused_ok do return false
+
+		hyprland_set_focused_monitor(state, monitor)
+		hyprland_set_monitor_workspace(state, monitor, id)
 		state.active_workspace = id
+
+		if hyprland_update_visible_fullscreen(state) do ipc.fullscreen_pending = true
 
 	case "createworkspacev2":
 		id_string, _, _ := strings.partition(data, ",")
 		id, create_ok := strconv.parse_int(id_string)
 		if !create_ok do return false
+
 		hyprland_add_workspace(state, id)
 
 	case "destroyworkspacev2":
 		id_string, _, _ := strings.partition(data, ",")
 		id, destroy_ok := strconv.parse_int(id_string)
 		if !destroy_ok do return false
+
 		hyprland_remove_workspace(state, id)
+		hyprland_remove_fullscreen_workspace(state, id)
+		if hyprland_update_visible_fullscreen(state) do ipc.fullscreen_pending = true
+
+	case "fullscreen":
+		fullscreen, fullscreen_ok := strconv.parse_int(data)
+		if !fullscreen_ok do return false
+		if fullscreen != 0 && fullscreen != 1 do return false
+
+		fullscreen_changed, refresh_ok := hyprland_refresh_fullscreen_workspaces(ipc)
+		if !refresh_ok do return false
+		if fullscreen_changed do ipc.fullscreen_pending = true
 
 	case "submap":
 		if data == "" do data = "default"
@@ -254,6 +455,10 @@ hyprland_handle_event :: proc(layer: ^Layer, event: string) -> bool {
 			state.active_workspace,
 			"submap:",
 			hyprland_get_submap(state),
+			"HDMI fullscreen:",
+			state.hdmi_fullscreen,
+			"eDP fullscreen:",
+			state.edp_fullscreen,
 		)
 	}
 	return true
@@ -270,6 +475,7 @@ hyprland_read_events :: proc(ipc: ^Hyprland_IPC, layer: ^Layer) -> bool {
 	if bytes_read <= 0 do return false
 
 	ipc.length += bytes_read
+
 	start := 0
 	changed := false
 
@@ -277,12 +483,14 @@ hyprland_read_events :: proc(ipc: ^Hyprland_IPC, layer: ^Layer) -> bool {
 		if ipc.buffer[i] != '\n' do continue
 
 		end := i
+
 		if end > start && ipc.buffer[end - 1] == '\r' do end -= 1
 
 		if end > start {
 			event := string(ipc.buffer[start:end])
 			if hyprland_handle_event(layer, event) do changed = true
 		}
+
 		start = i + 1
 	}
 

@@ -6,8 +6,9 @@ import "core:os"
 
 CONFIG_FILE_PATH :: "/home/drspliff/.config/oshell/config.json"
 Config :: struct {
-	font_filepath: string,
-	font_size:     FT_UInt,
+	font_filepath:               string,
+	font_size:                   FT_UInt,
+	fullscreen_output_switching: bool,
 }
 
 config_create :: proc() -> bool {

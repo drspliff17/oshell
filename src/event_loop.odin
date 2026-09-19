@@ -132,6 +132,11 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 		if .ERR in fds[1].revents || .HUP in fds[1].revents || .NVAL in fds[1].revents do return
 		if .IN in fds[1].revents {
 			if !hyprland_read_events(&app.hypr, layer) do return
+
+			if app.hypr.fullscreen_pending {
+				app.hypr.fullscreen_pending = false
+				app_update_fullscreen_output(app)
+			}
 		}
 
 		// oshell IPC
