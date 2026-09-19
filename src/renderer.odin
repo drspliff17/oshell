@@ -100,7 +100,7 @@ render :: proc(layer: ^Layer) {
 				border_size = 2,
 			},
 			bg_col = COLOURS.Widget,
-			text_col = COLOURS.Font_Dim,
+			text_col = COLOURS.Font,
 			size = 14,
 		},
 	)

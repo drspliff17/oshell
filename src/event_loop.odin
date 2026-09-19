@@ -11,6 +11,8 @@ process_updates :: proc(app: ^App) {
 		g_reload_colours = false
 		request_redraw_all(app)
 	}
+
+	if g_exit_requested do app.exit_requested = true
 }
 
 run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
@@ -29,6 +31,7 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 	test_start := time.tick_now()
 
 	for {
+		if app.exit_requested do return
 
 		// TEST: Duration mem test
 		if test_duration > 0 {
