@@ -43,6 +43,9 @@ run_app :: proc() {
 	if !media_init(&app) do fmt.eprintln("Media integration unavailable")
 	defer media_destroy(&app)
 
+	if !volume_init(&app) do fmt.eprintln("Volume integration unavailable")
+	defer volume_destroy(&app)
+
 	if !app_init_hyprland(&app) do return
 	defer app_destroy_hyprland(&app)
 

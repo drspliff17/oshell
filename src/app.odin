@@ -21,6 +21,9 @@ App :: struct {
 	// Media - MPRIS
 	media:                         Media_State,
 
+	// Volume
+	volume:                        Volume_State,
+
 	// IPC
 	hypr:                          Hyprland_IPC,
 	ipc:                           Oshell_IPC,

@@ -145,17 +145,51 @@ render :: proc(layer: ^Layer) {
 
 	// Submap
 	submap_text := hyprland_get_submap(&layer.hypr.state)
+
 	submap_text_size: FT_UInt = 14
 	submap_padding: f32 = 8
 
 	submap_metrics := measure_text(layer, submap_text, submap_text_size)
 	submap_width := submap_metrics.width + submap_padding * 2
+	submap_x := f32(layer.width) - 10 - submap_width
+
+	// Volume
+	if volume_available(&layer.volume) {
+		volume_text_buffer: [64]u8
+		volume_text := volume_get_text(&layer.volume, volume_text_buffer[:])
+
+		volume_text_size: FT_UInt = 13
+		volume_padding: f32 = 8
+		volume_gap: f32 = 5
+
+		volume_metrics := measure_text(layer, volume_text, volume_text_size)
+		volume_width := volume_metrics.width + volume_padding * 2
+
+		draw_volume(
+			layer,
+			Volume_Widget {
+				rect = {
+					x = submap_x - volume_gap - volume_width,
+					y = bar_content.y,
+					width = volume_width,
+					height = bar_content.height,
+					radius = 30,
+					padding = get_padding(volume_padding, .HORIZONTAL),
+					border_col = COLOURS.Border_Contrast_Widget,
+					border_size = 2,
+				},
+				bg_col = COLOURS.Widget,
+				text_col = COLOURS.Font,
+				text_size = volume_text_size,
+			},
+		)
+	}
 
 	draw_submap(
 		layer,
 		Submap_Widget {
 			rect = {
-				x = f32(layer.width) - 10 - submap_width,
+				x = submap_x,
 				y = bar_content.y,
 				width = submap_width,
 				height = bar_content.height,

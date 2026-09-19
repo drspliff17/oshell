@@ -17,11 +17,13 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 	app := layer.app
 
 	wayland_fd := wl.display_get_fd(app.display)
-	fds := [4]posix.pollfd {
+
+	fds := [5]posix.pollfd {
 		{fd = posix.FD(wayland_fd), events = {.IN}},
 		{fd = app.hypr.fd, events = {.IN}},
 		{fd = app.ipc.fd, events = {.IN}},
 		{fd = app.media.fd, events = {.IN}},
+		{fd = app.volume.fd, events = {.IN}},
 	}
 
 	test_start := time.tick_now()
@@ -36,19 +38,21 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 			}
 		}
 
-		for wl.display_prepare_read(app.display) != 0 {
-			if wl.display_dispatch_pending(app.display) < 0 do return
-		}
+		for wl.display_prepare_read(app.display) != 0 do if wl.display_dispatch_pending(app.display) < 0 do return
 
 		if wl.display_flush(app.display) < 0 {
 			wl.display_cancel_read(app.display)
 			return
 		}
 
+		fds[3].fd = app.media.fd
+		fds[4].fd = app.volume.fd
+
 		fds[0].revents = {}
 		fds[1].revents = {}
 		fds[2].revents = {}
 		fds[3].revents = {}
+		fds[4].revents = {}
 
 		timeout := milliseconds_until_next_minute()
 		if app.hypr.redraw_pending do timeout = min(timeout, 5)
@@ -135,7 +139,21 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 				fmt.eprintln("Media: D-Bus connection lost")
 				return
 			}
+
 			if .IN in fds[3].revents do if !media_process(app) do return
+		}
+
+		// Volume
+		if app.volume.fd >= 0 {
+			if .ERR in fds[4].revents || .HUP in fds[4].revents || .NVAL in fds[4].revents {
+				fmt.eprintln("Volume: Event subscription lost")
+				volume_destroy(app)
+			} else if .IN in fds[4].revents {
+				if !volume_process(app) {
+					fmt.eprintln("Volume: Event processing failed")
+					volume_destroy(app)
+				}
+			}
 		}
 
 		process_updates(app)
