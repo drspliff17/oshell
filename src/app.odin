@@ -11,14 +11,15 @@ App :: struct {
 	// Font Rendering State
 	font:               Font,
 
-	// Config
-	config:             Config,
 
 	// Media - MPRIS
 	media:              Media_State,
 
 	// Volume
 	volume:             Volume_State,
+
+	// Config
+	config:             Config,
 
 	// Layers
 	layers:             [dynamic]^Layer,

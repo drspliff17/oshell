@@ -5,6 +5,11 @@ import "core:os"
 import "core:strconv"
 import "core:strings"
 import "core:sys/posix"
+import "core:time"
+
+VOLUME_STARTUP_RETRIES :: 20
+VOLUME_STARTUP_RETRY_DELAY :: 250 * time.Millisecond
+VOLUME_SUBSCRIBE_STARTUP_DELAY :: 50 * time.Millisecond
 
 volume_refresh :: proc(app: ^App) -> (changed: bool, ok: bool) {
 	volume := &app.volume
@@ -35,7 +40,6 @@ volume_refresh :: proc(app: ^App) -> (changed: bool, ok: bool) {
 	}
 
 	value, _, parsed := strconv.parse_f32_prefix(output[len(volume_prefix):])
-
 	if !parsed {
 		fmt.eprintln("Volume: Failed to parse wpctl output:", output)
 		return false, false
@@ -75,12 +79,20 @@ volume_init :: proc(app: ^App) -> bool {
 		return false
 	}
 
+	time.sleep(VOLUME_SUBSCRIBE_STARTUP_DELAY)
+
+	process_state, _ := os.process_wait(process, 0)
+	if process_state.exited {
+		if DEBUG do fmt.println("Volume: pactl subscribe exited during startup")
+		os.close(read_pipe)
+		return false
+	}
+
 	volume.process = process
 	volume.pipe = read_pipe
 	volume.fd = posix.FD(os.fd(read_pipe))
 
 	_, refresh_ok := volume_refresh(app)
-
 	if !refresh_ok {
 		fmt.eprintln("Volume: Failed initial volume refresh")
 		volume_destroy(app)
@@ -91,6 +103,18 @@ volume_init :: proc(app: ^App) -> bool {
 	return true
 }
 
+volume_init_with_retry :: proc(app: ^App) -> bool {
+	for attempt in 0 ..< VOLUME_STARTUP_RETRIES {
+		if volume_init(app) do return true
+
+		if attempt == VOLUME_STARTUP_RETRIES - 1 do break
+		if DEBUG do fmt.println("Volume: unavailable, retrying:", attempt + 1, "/", VOLUME_STARTUP_RETRIES)
+		time.sleep(VOLUME_STARTUP_RETRY_DELAY)
+	}
+	fmt.eprintln("Volume: unavailable after startup retries")
+	return false
+}
+
 volume_process :: proc(app: ^App) -> bool {
 	volume := &app.volume
 	if volume.pipe == nil do return true
@@ -99,10 +123,12 @@ volume_process :: proc(app: ^App) -> bool {
 
 	for {
 		has_data, pipe_err := os.pipe_has_data(volume.pipe)
+
 		if pipe_err != os.ERROR_NONE {
 			fmt.eprintln("Volume: Subscription pipe failed:", os.error_string(pipe_err))
 			return false
 		}
+
 		if !has_data do break
 
 		buffer: [1024]u8
@@ -112,6 +138,7 @@ volume_process :: proc(app: ^App) -> bool {
 			fmt.eprintln("Volume: Failed to read subscription:", os.error_string(read_err))
 			return false
 		}
+
 		if n <= 0 do break
 		if volume.buffer_len + n > len(volume.buffer) do volume.buffer_len = 0
 
@@ -120,6 +147,7 @@ volume_process :: proc(app: ^App) -> bool {
 	}
 
 	start := 0
+
 	for i := 0; i < volume.buffer_len; i += 1 {
 		if volume.buffer[i] != '\n' do continue
 		line := string(volume.buffer[start:i])
@@ -132,6 +160,7 @@ volume_process :: proc(app: ^App) -> bool {
 		for i in 0 ..< remaining do volume.buffer[i] = volume.buffer[start + i]
 		volume.buffer_len = remaining
 	}
+
 	if !refresh do return true
 
 	changed, refresh_ok := volume_refresh(app)

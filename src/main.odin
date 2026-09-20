@@ -4,18 +4,18 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 
-DEBUG :: true
+DEBUG :: ODIN_DEBUG
 
 run_app :: proc() {
 	track: mem.Tracking_Allocator
 	tracking_init(&track)
 	defer tracking_destroy(&track)
 
-	setup_signals()
-	update_colours()
-
 	app := App{}
 	context.user_ptr = &app
+
+	setup_signals()
+	update_colours()
 
 	config_init(&app)
 	defer config_destroy(&app)
@@ -45,7 +45,7 @@ run_app :: proc() {
 	if !media_init(&app) do fmt.eprintln("Media integration unavailable")
 	defer media_destroy(&app)
 
-	if !volume_init(&app) do fmt.eprintln("Volume integration unavailable")
+	if !volume_init_with_retry(&app) do fmt.eprintln("Volume integration unavailable")
 	defer volume_destroy(&app)
 
 	if !app_init_hyprland(&app) do return
