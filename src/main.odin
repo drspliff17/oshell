@@ -48,6 +48,9 @@ run_app :: proc() {
 	if !volume_init_with_retry(&app) do fmt.eprintln("Volume integration unavailable")
 	defer volume_destroy(&app)
 
+	if !notifications_init(&app) do fmt.eprintln("Notifications integration unavailable")
+	defer notifications_destroy(&app)
+
 	if !app_init_hyprland(&app) do return
 	defer app_destroy_hyprland(&app)
 

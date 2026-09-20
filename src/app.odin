@@ -17,6 +17,9 @@ App :: struct {
 	// Volume
 	volume:             Volume_State,
 
+	// Notification
+	notifications:      Notification_State,
+
 	// Config
 	config:             Config,
 

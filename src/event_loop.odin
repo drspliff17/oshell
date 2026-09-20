@@ -26,12 +26,13 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 
 	wayland_fd := wl.display_get_fd(app.display)
 
-	fds := [5]posix.pollfd {
+	fds := [6]posix.pollfd {
 		{fd = posix.FD(wayland_fd), events = {.IN}},
 		{fd = app.hypr.fd, events = {.IN}},
 		{fd = app.ipc.fd, events = {.IN}},
 		{fd = app.media.fd, events = {.IN}},
 		{fd = app.volume.fd, events = {.IN}},
+		{fd = app.notifications.fd, events = {.IN}},
 	}
 
 	test_start := time.tick_now()
@@ -56,12 +57,14 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 
 		fds[3].fd = app.media.fd
 		fds[4].fd = app.volume.fd
+		fds[5].fd = app.notifications.fd
 
 		fds[0].revents = {}
 		fds[1].revents = {}
 		fds[2].revents = {}
 		fds[3].revents = {}
 		fds[4].revents = {}
+		fds[5].revents = {}
 
 		timeout := milliseconds_until_next_minute()
 		if app.hypr.redraw_pending do timeout = min(timeout, 5)
@@ -129,10 +132,12 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 		if wl.display_dispatch_pending(app.display) < 0 do return
 
 		// Hyprland
-		if .ERR in fds[1].revents || .HUP in fds[1].revents || .NVAL in fds[1].revents do return
+		if .ERR in fds[1].revents || .HUP in fds[1].revents || .NVAL in fds[1].revents {
+			return
+		}
+
 		if .IN in fds[1].revents {
 			if !hyprland_read_events(&app.hypr, layer) do return
-
 			if app.hypr.fullscreen_pending {
 				app.hypr.fullscreen_pending = false
 				app_update_fullscreen_output(app)
@@ -141,9 +146,7 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 
 		// oshell IPC
 		if .ERR in fds[2].revents || .HUP in fds[2].revents || .NVAL in fds[2].revents do return
-		if .IN in fds[2].revents {
-			if !oshell_ipc_handle(app) do fmt.eprintln("oshell IPC: Failed to handle connection")
-		}
+		if .IN in fds[2].revents do if !oshell_ipc_handle(app) do fmt.eprintln("oshell IPC: Failed to handle connection")
 
 		if app.exit_requested do return
 
@@ -153,7 +156,6 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 				fmt.eprintln("Media: D-Bus connection lost")
 				return
 			}
-
 			if .IN in fds[3].revents do if !media_process(app) do return
 		}
 
@@ -166,6 +168,19 @@ run_event_loop :: proc(layer: ^Layer, test_duration: time.Duration = 0) {
 				if !volume_process(app) {
 					fmt.eprintln("Volume: Event processing failed")
 					volume_destroy(app)
+				}
+			}
+		}
+
+		// Notifications D-Bus
+		if app.notifications.fd >= 0 {
+			if .ERR in fds[5].revents || .HUP in fds[5].revents || .NVAL in fds[5].revents {
+				fmt.eprintln("Notifications: D-Bus connection lost")
+				notifications_destroy(app)
+			} else if .IN in fds[5].revents {
+				if !notifications_process(app) {
+					fmt.eprintln("Notifications: Event processing failed")
+					notifications_destroy(app)
 				}
 			}
 		}

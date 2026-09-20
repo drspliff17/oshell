@@ -66,10 +66,16 @@ foreign systemd {
 	// Bus names
 
 	sd_bus_list_names :: proc(bus: ^sd_bus, acquired: ^[^]cstring, activatable: ^[^]cstring) -> c.int ---
+	sd_bus_request_name :: proc(bus: ^sd_bus, name: cstring, flags: u64) -> c.int ---
+	sd_bus_release_name :: proc(bus: ^sd_bus, name: cstring) -> c.int ---
 
 	// Property access
 
 	sd_bus_get_property :: proc(bus: ^sd_bus, destination: cstring, path: cstring, interface: cstring, member: cstring, error: ^sd_bus_error, reply: ^^sd_bus_message, expected_type: cstring) -> c.int ---
+
+	// Objects
+
+	sd_bus_add_object :: proc(bus: ^sd_bus, slot: ^^sd_bus_slot, path: cstring, callback: sd_bus_message_handler_t, userdata: rawptr) -> c.int ---
 
 	// Message lifetime
 
@@ -82,6 +88,8 @@ foreign systemd {
 	sd_bus_message_get_interface :: proc(message: ^sd_bus_message) -> cstring ---
 	sd_bus_message_get_member :: proc(message: ^sd_bus_message) -> cstring ---
 	sd_bus_message_get_signature :: proc(message: ^sd_bus_message, complete: c.int) -> cstring ---
+	sd_bus_message_is_method_call :: proc(message: ^sd_bus_message, interface: cstring, member: cstring) -> c.int ---
+	sd_bus_message_get_bus :: proc(message: ^sd_bus_message) -> ^sd_bus ---
 
 	// Message reading
 
@@ -92,6 +100,13 @@ foreign systemd {
 	sd_bus_message_skip :: proc(message: ^sd_bus_message, types: cstring) -> c.int ---
 	sd_bus_message_at_end :: proc(message: ^sd_bus_message, complete: c.int) -> c.int ---
 	sd_bus_message_rewind :: proc(message: ^sd_bus_message, complete: c.int) -> c.int ---
+
+	// Reply Construction
+	sd_bus_message_new_method_return :: proc(call: ^sd_bus_message, reply: ^^sd_bus_message) -> c.int ---
+	sd_bus_message_append_basic :: proc(message: ^sd_bus_message, kind: u8, value: rawptr) -> c.int ---
+	sd_bus_message_open_container :: proc(message: ^sd_bus_message, kind: u8, contents: cstring) -> c.int ---
+	sd_bus_message_close_container :: proc(message: ^sd_bus_message) -> c.int ---
+	sd_bus_send :: proc(bus: ^sd_bus, message: ^sd_bus_message, cookie: ^u64) -> c.int ---
 
 	// Error handling
 
