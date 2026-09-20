@@ -77,9 +77,26 @@ draw_media_widget :: proc(layer: ^Layer, widget: Media_Widget) {
 		return
 	}
 
+	// Too wide, truncate if marquee is disabled
+	if !layer.app.config.allow_infinite_marquee {
+		media.scroll_active = false
+		media.scroll_offset = 0
+		media.scroll_max = 0
+
+		truncate_buf: [1536]u8
+
+		truncated := truncate_text(layer, text, widget.size, content.width, truncate_buf[:])
+		truncated_metrics := measure_text(layer, truncated, widget.size)
+		text_x := content.x + (content.width - truncated_metrics.width) * 0.5
+
+		draw_text(layer, truncated, Vec2{text_x, baseline_y}, widget.text_col, widget.size)
+		return
+	}
+
 	// Infinite marquee
 	media.scroll_active = true
 	media.scroll_max = metrics.width + MEDIA_SCROLL_GAP
+
 	if media.scroll_offset >= media.scroll_max do media.scroll_offset = 0
 
 	scissor_x := i32(content.x)

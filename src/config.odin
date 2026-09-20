@@ -9,6 +9,7 @@ Config :: struct {
 	font_filepath:               string,
 	font_size:                   FT_UInt,
 	fullscreen_output_switching: bool,
+	allow_infinite_marquee:      bool,
 }
 
 config_create :: proc() -> bool {
@@ -20,8 +21,10 @@ config_create :: proc() -> bool {
 		}
 	}
 	default_config := Config {
-		font_filepath = DEFAULT_FONT_PATH,
-		font_size     = DEFAULT_FONT_SIZE,
+		font_filepath               = DEFAULT_FONT_PATH,
+		font_size                   = DEFAULT_FONT_SIZE,
+		fullscreen_output_switching = true,
+		allow_infinite_marquee      = true,
 	}
 	b, e := json.marshal(default_config)
 	if e != nil {

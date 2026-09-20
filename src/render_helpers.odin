@@ -1,5 +1,7 @@
 package main
 
+import "core:fmt"
+
 Text_Metrics :: struct {
 	width:   f32,
 	ascent:  f32,
@@ -212,4 +214,46 @@ measure_text :: proc(layer: ^Layer, text: string, size: FT_UInt = 16) -> Text_Me
 		metrics.descent = max(metrics.descent, descent)
 	}
 	return metrics
+}
+
+truncate_text :: proc(
+	layer: ^Layer,
+	text: string,
+	size: FT_UInt,
+	max_width: f32,
+	buffer: []u8,
+) -> string {
+	if text == "" do return ""
+	if measure_text(layer, text, size).width <= max_width do return text
+
+	ellipsis :: "..."
+	ellipsis_width := measure_text(layer, ellipsis, size).width
+	if ellipsis_width > max_width do return ""
+
+	width: f32
+	end := 0
+
+	for character, index in text {
+		glyph, ok := cache_glyph(layer, character, size)
+		if !ok do continue
+
+		next_width := width + f32(glyph.advance)
+		if next_width + ellipsis_width > max_width do break
+
+		width = next_width
+		end = index
+
+		if character < 0x80 {
+			end += 1
+		} else if character < 0x800 {
+			end += 2
+		} else if character < 0x10000 {
+			end += 3
+		} else {
+			end += 4
+		}
+	}
+
+	if end <= 0 do return ellipsis
+	return fmt.bprintf(buffer, "%s%s", text[:end], ellipsis)
 }
