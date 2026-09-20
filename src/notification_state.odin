@@ -5,18 +5,21 @@ import "core:time"
 
 NOTIFICATION_SUMMARY_CAPACITY :: 1024
 NOTIFICATION_BODY_CAPACITY :: 4096
+NOTIFICATION_APP_NAME_CAPACITY :: 256
 
 NOTIFICATION_DEFAULT_TIMEOUT :: 5 * time.Second
 
 Notification :: struct {
 	body:        [NOTIFICATION_BODY_CAPACITY]u8,
 	summary:     [NOTIFICATION_SUMMARY_CAPACITY]u8,
+	appname:     [NOTIFICATION_APP_NAME_CAPACITY]u8,
 	views:       [dynamic]^Layer,
 	started_at:  time.Tick,
 	timeout:     time.Duration,
 	id:          u32,
 	summary_len: int,
 	body_len:    int,
+	appname_len: int,
 	expires:     bool,
 }
 
@@ -38,6 +41,11 @@ notification_state_init :: proc(state: ^Notification_State) {
 	state.fd = posix.FD(-1)
 	state.next_id = 1
 	state.items = make([dynamic]Notification)
+}
+
+notification_get_app_name :: proc(notification: ^Notification) -> string {
+	if notification.appname_len <= 0 do return ""
+	return string(notification.appname[:notification.appname_len])
 }
 
 notification_get_summary :: proc(notification: ^Notification) -> string {

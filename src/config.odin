@@ -6,10 +6,12 @@ import "core:os"
 
 CONFIG_FILE_PATH :: "/home/drspliff/.config/oshell/config.json"
 Config :: struct {
-	font_filepath:               string,
-	font_size:                   FT_UInt,
-	fullscreen_output_switching: bool,
-	allow_infinite_marquee:      bool,
+	excluded_notification_log_appnames: []string,
+	font_filepath:                      string,
+	font_size:                          FT_UInt,
+	allow_notification_logging:         bool,
+	fullscreen_output_switching:        bool,
+	allow_infinite_marquee:             bool,
 }
 
 config_create :: proc() -> bool {
@@ -20,11 +22,20 @@ config_create :: proc() -> bool {
 			return false
 		}
 	}
+
 	default_config := Config {
-		font_filepath               = DEFAULT_FONT_PATH,
-		font_size                   = DEFAULT_FONT_SIZE,
-		fullscreen_output_switching = true,
-		allow_infinite_marquee      = true,
+		excluded_notification_log_appnames = {
+			"nhc",
+			"nohistory",
+			"nh-center-text",
+			"ts",
+			"theme_selector",
+		},
+		font_filepath                      = DEFAULT_FONT_PATH,
+		font_size                          = DEFAULT_FONT_SIZE,
+		fullscreen_output_switching        = true,
+		allow_infinite_marquee             = true,
+		allow_notification_logging         = true,
 	}
 	b, e := json.marshal(default_config)
 	if e != nil {
@@ -81,4 +92,7 @@ config_reload :: proc(app: ^App) {
 config_destroy :: proc(app: ^App) {
 	if !app.config_initialised do return
 	if len(app.config.font_filepath) > 0 do delete_string(app.config.font_filepath)
+
+	for t in app.config.excluded_notification_log_appnames do delete_string(t)
+	delete(app.config.excluded_notification_log_appnames)
 }

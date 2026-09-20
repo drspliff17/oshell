@@ -2,7 +2,9 @@ package main
 
 import "base:runtime"
 import "core:c"
+import "core:encoding/json"
 import "core:fmt"
+import "core:os"
 import "core:sys/posix"
 import "core:time"
 import wl "wayland"
@@ -10,6 +12,72 @@ import wl "wayland"
 NOTIFICATIONS_SERVICE :: "org.freedesktop.Notifications"
 NOTIFICATIONS_PATH :: "/org/freedesktop/Notifications"
 NOTIFICATIONS_INTERFACE :: "org.freedesktop.Notifications"
+
+NOTIFICATION_LOG_PATH :: "/home/drspliff/dev/data/notifications.jsonl"
+
+Notification_Log_Entry :: struct {
+	timestamp: string,
+	appname:   string,
+	summary:   string,
+	body:      string,
+}
+
+notification_log :: proc(appname: string, summary: string, body: string) -> bool {
+	app := get_app()
+	for t in app.config.excluded_notification_log_appnames do if t == appname do return true
+
+	now := time.now()
+
+	year, month, day := time.date(now)
+	hour, minute, second := time.clock_from_time(now)
+
+	timestamp_buf: [32]u8
+	timestamp := fmt.bprintf(
+		timestamp_buf[:],
+		"%02d/%02d/%04d:%02d:%02d:%02d",
+		day,
+		int(month),
+		year,
+		hour + 1,
+		minute,
+		second,
+	)
+
+	entry := Notification_Log_Entry {
+		timestamp = timestamp,
+		appname   = appname,
+		summary   = summary,
+		body      = body,
+	}
+
+	data, marshal_err := json.marshal(entry)
+	if marshal_err != nil {
+		fmt.eprintln("Notifications: Failed to encode log entry:", marshal_err)
+		return false
+	}
+	defer delete(data)
+
+	file, open_err := os.open(NOTIFICATION_LOG_PATH, os.O_WRONLY | os.O_APPEND | os.O_CREATE)
+	if open_err != nil {
+		fmt.eprintln("Notifications: Failed to open log:", open_err)
+		return false
+	}
+	defer os.close(file)
+
+	_, write_err := os.write(file, data)
+	if write_err != nil {
+		fmt.eprintln("Notifications: Failed to write log:", write_err)
+		return false
+	}
+
+	_, newline_err := os.write_string(file, "\n")
+	if newline_err != nil {
+		fmt.eprintln("Notifications: Failed to finish log entry:", newline_err)
+		return false
+	}
+
+	return true
+}
 
 notifications_send_reply :: proc(message: ^sd_bus_message, reply: ^sd_bus_message) -> c.int {
 	bus := sd_bus_message_get_bus(message)
@@ -100,6 +168,12 @@ notifications_find :: proc(state: ^Notification_State, id: u32) -> int {
 notification_find_view :: proc(notification: ^Notification, output: ^wl.output) -> ^Layer {
 	for view in notification.views do if view.output == output do return view
 	return nil
+}
+
+notification_set_appname :: proc(notification: ^Notification, appname: string) {
+	appname_len := min(len(appname), len(notification.appname))
+	if appname_len > 0 do copy(notification.appname[:appname_len], appname[:appname_len])
+	notification.appname_len = appname_len
 }
 
 notification_set_text :: proc(notification: ^Notification, summary: string, body: string) {
@@ -393,21 +467,27 @@ notifications_handle_notify :: proc(app: ^App, message: ^sd_bus_message) -> c.in
 	result = sd_bus_message_read_basic(message, SD_BUS_TYPE_INT32, &expire_timeout)
 	if result < 0 do return result
 
+	appname_text := string(app_name)
 	summary_text := string(summary)
 	body_text := string(body)
+
+	if app.config.allow_notification_logging do notification_log(string(app_name), string(summary), string(body))
 
 	id: u32
 	index := -1
 
 	if replaces_id != 0 do index = notifications_find(&app.notifications, replaces_id)
+
 	if index >= 0 {
 		id = replaces_id
 
 		notification := &app.notifications.items[index]
+
+		notification_set_appname(notification, appname_text)
 		notification_set_text(notification, summary_text, body_text)
 		notification_set_timeout(notification, expire_timeout)
-
 		notification_recreate_views(app, notification)
+
 		notifications_relayout(app)
 
 		for view in notification.views do request_redraw(view)
@@ -416,24 +496,28 @@ notifications_handle_notify :: proc(app: ^App, message: ^sd_bus_message) -> c.in
 
 		app.notifications.next_id += 1
 		if app.notifications.next_id == 0 do app.notifications.next_id = 1
+
 		notification := Notification {
 			id = id,
 		}
 
+		notification_set_appname(&notification, appname_text)
 		notification_set_text(&notification, summary_text, body_text)
 		notification_set_timeout(&notification, expire_timeout)
 
 		append(&app.notifications.items, notification)
 
 		new_notification := &app.notifications.items[len(app.notifications.items) - 1]
+
 		notification_create_views(app, new_notification)
 		notifications_relayout(app)
+
 		for view in new_notification.views do request_redraw(view)
 	}
 
 	if DEBUG {
 		fmt.println("notification:", id)
-		fmt.println("  app:", app_name)
+		fmt.println("  app:", appname_text)
 		fmt.println("  icon:", app_icon)
 		fmt.println("  summary:", summary_text)
 		fmt.println("  body:", body_text)
