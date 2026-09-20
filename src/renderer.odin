@@ -28,6 +28,7 @@ Render_State :: struct {
 
 request_redraw :: proc(layer: ^Layer) {
 	if layer == nil do return
+	if layer.layer_type != .Bar do return
 	if layer.app.output_mode == .Hide do return
 	if !layer.configured do return
 	if layer.egl_surface == nil do return

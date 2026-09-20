@@ -4,8 +4,21 @@ import "base:runtime"
 import "core:fmt"
 import wl "wayland"
 
+Layer_Type :: enum {
+	Bar,
+	Notification,
+}
+
+BAR_LAYER_HEIGHT :: 28
+BAR_EXCLUSIVE_ZONE :: 32
+
+NOTIFICATION_LAYER_HEIGHT :: 300
+
 Layer :: struct {
 	using app:      ^App,
+
+	// Layer type
+	layer_type:     Layer_Type,
 
 	// Output this layer belongs to
 	output:         ^wl.output,
@@ -52,9 +65,10 @@ layer_surface_configure :: proc "cdecl" (
 	layer.configured = true
 
 	wl.layer_surface_v1_ack_configure(surface, serial)
+
 	if layer.egl_window != nil do wl.egl_window_resize(layer.egl_window, int(width), int(height), 0, 0)
 
-	if DEBUG do fmt.println("configure:", width, height, "serial:", serial)
+	if DEBUG do fmt.println("configure:", layer.layer_type, width, height, "serial:", serial)
 }
 
 layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v1) {
@@ -64,7 +78,7 @@ layer_surface_closed :: proc "cdecl" (data: rawptr, surface: ^wl.layer_surface_v
 	context.user_ptr = layer.app
 	layer.configured = false
 
-	if DEBUG do fmt.println("layer surface closed")
+	if DEBUG do fmt.println("layer surface closed:", layer.layer_type)
 }
 
 layer_make_current :: proc(layer: ^Layer) -> bool {
@@ -93,41 +107,52 @@ layer_create_surface :: proc(layer: ^Layer, output: ^wl.output) -> bool {
 	layer.configured = false
 
 	layer.surface = wl.compositor_create_surface(layer.compositor)
+
 	if layer.surface == nil {
 		fmt.eprintln("Failed to create wl_surface")
 		return false
 	}
+
+	namespace: cstring = layer.layer_type == .Bar ? "oshell-bar" : "oshell-notification"
 
 	layer.layer_surface = wl.layer_shell_v1_get_layer_surface(
 		layer.layer_shell,
 		layer.surface,
 		output,
 		.overlay,
-		"oshell",
+		namespace,
 	)
 
 	if layer.layer_surface == nil {
 		fmt.eprintln("Failed to create layer surface")
-
 		wl.surface_destroy(layer.surface)
 		layer.surface = nil
-
 		return false
 	}
 
 	wl.layer_surface_v1_add_listener(layer.layer_surface, &layer_surface_listener, layer)
 
-	wl.layer_surface_v1_set_size(layer.layer_surface, 0, 28)
-	wl.layer_surface_v1_set_anchor(layer.layer_surface, .bottom | .left | .right)
-	wl.layer_surface_v1_set_exclusive_zone(layer.layer_surface, 32)
-	wl.layer_surface_v1_set_keyboard_interactivity(layer.layer_surface, .none)
+	switch layer.layer_type {
+	case .Bar:
+		wl.layer_surface_v1_set_size(layer.layer_surface, 0, BAR_LAYER_HEIGHT)
+		wl.layer_surface_v1_set_anchor(layer.layer_surface, .bottom | .left | .right)
+		wl.layer_surface_v1_set_exclusive_zone(layer.layer_surface, BAR_EXCLUSIVE_ZONE)
 
+	case .Notification:
+		wl.layer_surface_v1_set_size(layer.layer_surface, 0, NOTIFICATION_LAYER_HEIGHT)
+		wl.layer_surface_v1_set_anchor(layer.layer_surface, .top | .left | .right)
+		wl.layer_surface_v1_set_exclusive_zone(layer.layer_surface, 0)
+	}
+
+	wl.layer_surface_v1_set_keyboard_interactivity(layer.layer_surface, .none)
 	wl.surface_commit(layer.surface)
+
 	if wl.display_flush(layer.display) < 0 {
 		fmt.eprintln("Failed to flush layer surface commit")
 		return false
 	}
-	if DEBUG do fmt.println("waiting for layer configure")
+
+	if DEBUG do fmt.println("waiting for layer configure:", layer.layer_type)
 
 	for !layer.configured {
 		if wl.display_dispatch(layer.display) < 0 {
@@ -135,7 +160,8 @@ layer_create_surface :: proc(layer: ^Layer, output: ^wl.output) -> bool {
 			return false
 		}
 	}
-	if DEBUG do fmt.println("layer configured:", layer.width, "x", layer.height)
+
+	if DEBUG do fmt.println("layer configured:", layer.layer_type, layer.width, "x", layer.height)
 
 	layer.egl_window = wl.egl_window_create(layer.surface, int(layer.width), int(layer.height))
 	if layer.egl_window == nil {
@@ -153,14 +179,13 @@ layer_create_surface :: proc(layer: ^Layer, output: ^wl.output) -> bool {
 	if layer.egl_surface == nil {
 		fmt.eprintln("Failed to create EGL surface")
 		fmt.eprintln("EGL error:", eglGetError())
-
 		wl.egl_window_destroy(layer.egl_window)
 		layer.egl_window = nil
 		return false
 	}
 	if !layer_make_current(layer) do return false
 
-	if DEBUG do fmt.println("layer created:", layer.width, "x", layer.height)
+	if DEBUG do fmt.println("layer created:", layer.layer_type, layer.width, "x", layer.height)
 	return true
 }
 
@@ -216,6 +241,9 @@ layer_set_output :: proc(layer: ^Layer, output: ^wl.output) -> bool {
 		return true
 	}
 
-	if old_output != nil do if layer_create_surface(layer, old_output) do request_redraw(layer)
+	if old_output != nil {
+		if layer_create_surface(layer, old_output) do request_redraw(layer)
+	}
+
 	return false
 }

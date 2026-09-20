@@ -32,7 +32,7 @@ run_app :: proc() {
 	}
 	defer app_destroy_egl(&app)
 
-	layer := app_init_primary_layer(&app)
+	layer := app_init_primary_layers(&app)
 	if layer == nil do return
 	defer app_destroy_layers(&app)
 
