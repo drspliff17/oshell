@@ -15,6 +15,7 @@ process_updates :: proc(app: ^App) {
 		update_colours()
 		g_reload_colours = false
 		request_redraw_all(app)
+		notifications_request_redraw(app)
 	}
 
 	if g_exit_requested do app.exit_requested = true
