@@ -17,13 +17,13 @@ App :: struct {
 	// Volume
 	volume:             Volume_State,
 
-	// Notification
+	// Notifications
 	notifications:      Notification_State,
 
 	// Config
 	config:             Config,
 
-	// Layers
+	// Bar layers
 	layers:             [dynamic]^Layer,
 	current_layer:      ^Layer,
 
@@ -92,42 +92,40 @@ app_preferred_output :: proc(app: ^App) -> ^wl.output {
 
 app_inverted_output :: proc(app: ^App) -> ^wl.output {
 	preferred := app_preferred_output(app)
-	if preferred == app.hdmi_output && app.edp_output != nil do return app.edp_output
-	if preferred == app.edp_output && app.hdmi_output != nil do return app.hdmi_output
+	if preferred == app.hdmi_output && app.edp_output != nil {
+		return app.edp_output
+	}
+
+	if preferred == app.edp_output && app.hdmi_output != nil {
+		return app.hdmi_output
+	}
+
 	return preferred
 }
 
-app_find_layer :: proc(app: ^App, output: ^wl.output, layer_type: Layer_Type) -> ^Layer {
-	for layer in app.layers {
-		if layer.output != output do continue
-		if layer.layer_type != layer_type do continue
-		return layer
-	}
+app_find_layer :: proc(app: ^App, output: ^wl.output) -> ^Layer {
+	for layer in app.layers do if layer.output == output do return layer
 	return nil
 }
 
-app_find_first_layer_type :: proc(app: ^App, layer_type: Layer_Type) -> ^Layer {
-	for layer in app.layers do if layer.layer_type == layer_type do return layer
-	return nil
-}
-
-app_create_layer :: proc(app: ^App, output: ^wl.output, layer_type: Layer_Type) -> ^Layer {
+app_create_layer :: proc(app: ^App, output: ^wl.output) -> ^Layer {
 	if output == nil do return nil
 
 	layer := new(Layer)
 	layer.app = app
-	layer.layer_type = layer_type
+	layer.layer_type = .Bar
 	if !layer_create_surface(layer, output) {
 		free(layer)
 		return nil
 	}
+
 	append(&app.layers, layer)
+
 	return layer
 }
 
 app_destroy_layer :: proc(app: ^App, index: int) {
 	if index < 0 || index >= len(app.layers) do return
-
 	layer := app.layers[index]
 	layer_destroy_surface(layer)
 	free(layer)
@@ -135,34 +133,21 @@ app_destroy_layer :: proc(app: ^App, index: int) {
 }
 
 app_destroy_extra_layers :: proc(app: ^App) {
-	primary_bar := app_find_first_layer_type(app, .Bar)
-	primary_notification := app_find_first_layer_type(app, .Notification)
-
-	i := len(app.layers) - 1
-	for i >= 0 {
-		layer := app.layers[i]
-		if layer != primary_bar && layer != primary_notification do app_destroy_layer(app, i)
-		i -= 1
-	}
+	for len(app.layers) > 1 do app_destroy_layer(app, len(app.layers) - 1)
 }
 
 app_destroy_layers :: proc(app: ^App) {
 	for len(app.layers) > 0 do app_destroy_layer(app, len(app.layers) - 1)
 }
 
-app_prepare_primary_layer :: proc(
-	app: ^App,
-	layer_type: Layer_Type,
-	output: ^wl.output,
-) -> ^Layer {
+app_prepare_primary_layer :: proc(app: ^App, output: ^wl.output) -> ^Layer {
 	if output == nil do return nil
+	if len(app.layers) == 0 do return app_create_layer(app, output)
 
-	layer := app_find_first_layer_type(app, layer_type)
-	if layer == nil do return app_create_layer(app, output, layer_type)
+	layer := app.layers[0]
 
-	// Hidden layer: allocation still exists, but surface stack does not
+	// Hidden bar: allocation still exists, surface does not
 	if layer.surface == nil || layer.egl_surface == nil {
-		layer_destroy_surface(layer)
 		if !layer_create_surface(layer, output) do return nil
 		return layer
 	}
@@ -174,49 +159,16 @@ app_prepare_primary_layer :: proc(
 	return layer
 }
 
-app_prepare_primary_pair :: proc(app: ^App, output: ^wl.output) -> (^Layer, ^Layer, bool) {
-	bar := app_prepare_primary_layer(app, .Bar, output)
-	if bar == nil do return nil, nil, false
-
-	notification := app_prepare_primary_layer(app, .Notification, output)
-	if notification == nil do return nil, nil, false
-
-	return bar, notification, true
-}
-
-app_create_output_pair :: proc(app: ^App, output: ^wl.output) -> bool {
-	if output == nil do return false
-
-	bar := app_find_layer(app, output, .Bar)
-
-	if bar == nil {
-		bar = app_create_layer(app, output, .Bar)
-		if bar == nil do return false
-	}
-
-	notification := app_find_layer(app, output, .Notification)
-
-	if notification == nil {
-		notification = app_create_layer(app, output, .Notification)
-		if notification == nil do return false
-	}
-
-	return true
-}
-
 app_hide :: proc(app: ^App) {
 	app_destroy_extra_layers(app)
-
-	bar := app_find_first_layer_type(app, .Bar)
-	notification := app_find_first_layer_type(app, .Notification)
-
-	if bar != nil do layer_destroy_surface(bar)
-	if notification != nil do layer_destroy_surface(notification)
-
+	if len(app.layers) > 0 do layer_destroy_surface(app.layers[0])
 	app.output_mode = .Hide
+	notifications_sync_outputs(app)
 }
 
 app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
+	if len(app.layers) == 0 do return false
+
 	switch mode {
 	case .Preferred:
 		output := app_preferred_output(app)
@@ -224,12 +176,14 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 
 		app_destroy_extra_layers(app)
 
-		bar, _, ok := app_prepare_primary_pair(app, output)
-		if !ok do return false
+		primary := app_prepare_primary_layer(app, output)
+		if primary == nil do return false
 
 		app.output_mode = .Preferred
 
-		request_redraw(bar)
+		notifications_sync_outputs(app)
+		request_redraw_all(app)
+
 		return true
 
 	case .Inverted:
@@ -238,12 +192,14 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 
 		app_destroy_extra_layers(app)
 
-		bar, _, ok := app_prepare_primary_pair(app, output)
-		if !ok do return false
+		primary := app_prepare_primary_layer(app, output)
+		if primary == nil do return false
 
 		app.output_mode = .Inverted
 
-		request_redraw(bar)
+		notifications_sync_outputs(app)
+		request_redraw_all(app)
+
 		return true
 
 	case .All:
@@ -252,17 +208,20 @@ app_set_output_mode :: proc(app: ^App, mode: OUTPUT_MODES) -> bool {
 
 		app_destroy_extra_layers(app)
 
-		_, _, primary_ok := app_prepare_primary_pair(app, primary_output)
-		if !primary_ok do return false
+		primary := app_prepare_primary_layer(app, primary_output)
+		if primary == nil do return false
 
 		second_output := primary_output == app.hdmi_output ? app.edp_output : app.hdmi_output
 		if second_output != nil {
-			if !app_create_output_pair(app, second_output) do return false
+			second := app_create_layer(app, second_output)
+			if second == nil do return false
 		}
 
 		app.output_mode = .All
 
+		notifications_sync_outputs(app)
 		request_redraw_all(app)
+
 		return true
 
 	case .Hide:
@@ -281,6 +240,7 @@ app_toggle_output :: proc(app: ^App) -> bool {
 	case .Inverted, .All, .Hide:
 		return app_set_output_mode(app, .Preferred)
 	}
+
 	return false
 }
 

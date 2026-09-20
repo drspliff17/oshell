@@ -82,12 +82,11 @@ snap_pixel :: proc(value: f32) -> f32 {
 	return f32(i32(value - 0.5))
 }
 
+// Fixed ascender + descender reference so vertical positioning
+// does not depend on the actual characters being drawn.
 centered_text_baseline :: proc(layer: ^Layer, rect: Rect, size: FT_UInt) -> f32 {
-	// Fixed ascender + descender reference so vertical positioning
-	// does not depend on the actual characters being drawn.
 	metrics := measure_text(layer, "Hg", size)
 	text_height := metrics.ascent + metrics.descent
-
 	return snap_pixel(rect.y + (rect.height - text_height) * 0.5 + metrics.ascent)
 }
 

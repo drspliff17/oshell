@@ -8,7 +8,7 @@ frame_listener := wl.callback_listener {
 	done = frame_done,
 }
 
-frame_done :: proc "c" (data: rawptr, callback: ^wl.callback, frame_time: uint) {
+frame_done :: proc "cdecl" (data: rawptr, callback: ^wl.callback, callback_data: uint) {
 	context = runtime.default_context()
 
 	layer := cast(^Layer)data
@@ -18,6 +18,11 @@ frame_done :: proc "c" (data: rawptr, callback: ^wl.callback, frame_time: uint) 
 
 	layer.frame_callback = nil
 	layer.frame_pending = false
+
+	if layer.redraw_pending {
+		layer.redraw_pending = false
+		request_redraw(layer)
+	}
 }
 
 milliseconds_until_next_minute :: proc() -> i32 {

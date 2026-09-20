@@ -17,25 +17,13 @@ app_init_primary_layers :: proc(app: ^App) -> ^Layer {
 		}
 	}
 
-	bar := app_create_layer(app, output, .Bar)
-
-	if bar == nil {
+	layer := app_create_layer(app, output)
+	if layer == nil {
 		fmt.eprintln("Failed to create initial bar layer")
 		return nil
 	}
 
-	notification := app_create_layer(app, output, .Notification)
-	if notification == nil {
-		fmt.eprintln("Failed to create initial notification layer")
-		app_destroy_layers(app)
-		return nil
-	}
-
 	app.output_mode = .Preferred
-
-	if DEBUG {
-		fmt.println("bar configured:", bar.width, bar.height)
-		fmt.println("notification configured:", notification.width, notification.height)
-	}
-	return bar
+	if DEBUG do fmt.println("configured:", layer.width, layer.height)
+	return layer
 }

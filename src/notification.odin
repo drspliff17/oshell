@@ -4,6 +4,8 @@ import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:sys/posix"
+import "core:time"
+import wl "wayland"
 
 NOTIFICATIONS_SERVICE :: "org.freedesktop.Notifications"
 NOTIFICATIONS_PATH :: "/org/freedesktop/Notifications"
@@ -90,6 +92,275 @@ notifications_reply_server_information :: proc(message: ^sd_bus_message) -> c.in
 	return notifications_send_reply(message, reply)
 }
 
+notifications_find :: proc(state: ^Notification_State, id: u32) -> int {
+	for i in 0 ..< len(state.items) do if state.items[i].id == id do return i
+	return -1
+}
+
+notification_find_view :: proc(notification: ^Notification, output: ^wl.output) -> ^Layer {
+	for view in notification.views do if view.output == output do return view
+	return nil
+}
+
+notification_set_text :: proc(notification: ^Notification, summary: string, body: string) {
+	summary_len := min(len(summary), len(notification.summary))
+	body_len := min(len(body), len(notification.body))
+
+	if summary_len > 0 do copy(notification.summary[:summary_len], summary[:summary_len])
+	if body_len > 0 do copy(notification.body[:body_len], body[:body_len])
+
+	notification.summary_len = summary_len
+	notification.body_len = body_len
+}
+
+notification_set_timeout :: proc(notification: ^Notification, expire_timeout: i32) {
+	notification.started_at = time.tick_now()
+
+	if expire_timeout == 0 {
+		notification.expires = false
+		notification.timeout = 0
+		return
+	}
+
+	notification.expires = true
+	if expire_timeout < 0 {
+		notification.timeout = NOTIFICATION_DEFAULT_TIMEOUT
+		return
+	}
+
+	notification.timeout = time.Duration(i64(expire_timeout) * 1_000_000)
+}
+
+notification_measure_size :: proc(
+	app: ^App,
+	output: ^wl.output,
+	notification: ^Notification,
+) -> (
+	u32,
+	u32,
+) {
+	measure_layer := app_find_layer(app, output)
+
+	if measure_layer == nil {
+		if len(app.layers) == 0 do return 1, 1
+		measure_layer = app.layers[0]
+	}
+
+	if measure_layer.egl_surface == nil do return 1, 1
+	if !layer_make_current(measure_layer) do return 1, 1
+
+	font_size := app_get_font_size(app)
+
+	summary := notification_get_summary(notification)
+	body := notification_get_body(notification)
+
+	summary_metrics := measure_text(measure_layer, summary, font_size)
+	body_metrics := measure_text(measure_layer, body, font_size)
+
+	line_metrics := measure_text(measure_layer, "Hg", font_size)
+	line_height := line_metrics.ascent + line_metrics.descent
+
+	content_width := max(summary_metrics.width, body_metrics.width)
+
+	width := min(content_width + f32(NOTIFICATION_PADDING_X * 2), f32(NOTIFICATION_MAX_WIDTH))
+	height := line_height + f32(NOTIFICATION_PADDING_Y * 2)
+
+	if body != "" do height = line_height * 2 + f32(NOTIFICATION_TEXT_GAP) + f32(NOTIFICATION_PADDING_Y * 2)
+
+	if width < 1 do width = 1
+	if height < 1 do height = 1
+
+	return u32(width + 0.5), u32(height + 0.5)
+}
+
+notification_create_view :: proc(
+	app: ^App,
+	notification: ^Notification,
+	output: ^wl.output,
+) -> ^Layer {
+	if output == nil do return nil
+
+	existing := notification_find_view(notification, output)
+	if existing != nil do return existing
+
+	width, height := notification_measure_size(app, output, notification)
+
+	view := new(Layer)
+
+	view.app = app
+	view.layer_type = .Notification
+	view.notification_id = notification.id
+	view.notification_width = width
+	view.notification_height = height
+	view.margin_left = 10
+	view.margin_top = 10
+
+	if !layer_create_surface(view, output) {
+		free(view)
+		return nil
+	}
+
+	if notification.views == nil do notification.views = make([dynamic]^Layer)
+	append(&notification.views, view)
+	return view
+}
+
+notification_create_views :: proc(app: ^App, notification: ^Notification) {
+	if app.output_mode == .Hide do return
+
+	for bar in app.layers {
+		if bar.output == nil do continue
+		if bar.surface == nil do continue
+		if bar.egl_surface == nil do continue
+
+		_ = notification_create_view(app, notification, bar.output)
+	}
+}
+
+notification_destroy_views :: proc(notification: ^Notification) {
+	for view in notification.views {
+		layer_destroy_surface(view)
+		free(view)
+	}
+
+	if notification.views != nil {
+		delete(notification.views)
+		notification.views = nil
+	}
+}
+
+notification_recreate_views :: proc(app: ^App, notification: ^Notification) {
+	notification_destroy_views(notification)
+	notification_create_views(app, notification)
+}
+
+notifications_remove :: proc(app: ^App, index: int) {
+	state := &app.notifications
+	if index < 0 || index >= len(state.items) do return
+
+	notification := &state.items[index]
+	notification_destroy_views(notification)
+	ordered_remove(&state.items, index)
+}
+
+notifications_relayout_output :: proc(app: ^App, output: ^wl.output) {
+	if output == nil do return
+
+	bar := app_find_layer(app, output)
+
+	if bar == nil do return
+	if !bar.configured do return
+
+	margin := 10
+	gap := 8
+
+	x := margin
+	y := margin
+	row_height := 0
+
+	for i in 0 ..< len(app.notifications.items) {
+		notification := &app.notifications.items[i]
+
+		view := notification_find_view(notification, output)
+		if view == nil do continue
+
+		width := int(view.notification_width)
+		height := int(view.notification_height)
+
+		if x > margin && x + width > int(bar.width) - margin {
+			x = margin
+			y += row_height + gap
+			row_height = 0
+		}
+
+		layer_set_position(view, x, y)
+
+		x += width + gap
+		row_height = max(row_height, height)
+	}
+}
+
+notifications_relayout :: proc(app: ^App) {
+	for bar in app.layers {
+		if bar.output == nil do continue
+		if !bar.configured do continue
+		notifications_relayout_output(app, bar.output)
+	}
+}
+
+notifications_request_redraw :: proc(app: ^App) {
+	for i in 0 ..< len(app.notifications.items) {
+		notification := &app.notifications.items[i]
+		for view in notification.views do request_redraw(view)
+	}
+}
+
+notifications_sync_outputs :: proc(app: ^App) {
+	for i in 0 ..< len(app.notifications.items) {
+		notification := &app.notifications.items[i]
+		notification_destroy_views(notification)
+		notification_create_views(app, notification)
+	}
+
+	notifications_relayout(app)
+	notifications_request_redraw(app)
+}
+
+notifications_next_timeout :: proc(app: ^App) -> (i32, bool) {
+	state := &app.notifications
+
+	found := false
+	nearest: time.Duration
+
+	for i in 0 ..< len(state.items) {
+		notification := &state.items[i]
+		if !notification.expires do continue
+
+		elapsed := time.tick_since(notification.started_at)
+		remaining := notification.timeout - elapsed
+		if remaining <= 0 do return 0, true
+
+		if !found || remaining < nearest {
+			nearest = remaining
+			found = true
+		}
+	}
+
+	if !found do return 0, false
+
+	timeout := int(time.duration_milliseconds(nearest))
+	if timeout < 1 do timeout = 1
+	return i32(timeout), true
+}
+
+notifications_tick :: proc(app: ^App) {
+	state := &app.notifications
+	changed := false
+
+	i := 0
+	for i < len(state.items) {
+		notification := &state.items[i]
+		if !notification.expires {
+			i += 1
+			continue
+		}
+
+		if time.tick_since(notification.started_at) < notification.timeout {
+			i += 1
+			continue
+		}
+
+		if DEBUG do fmt.println("notification expired:", notification.id)
+		notifications_remove(app, i)
+		changed = true
+	}
+
+	if changed {
+		notifications_relayout(app)
+		notifications_request_redraw(app)
+	}
+}
+
 notifications_handle_notify :: proc(app: ^App, message: ^sd_bus_message) -> c.int {
 	app_name: cstring
 	replaces_id: u32
@@ -122,32 +393,70 @@ notifications_handle_notify :: proc(app: ^App, message: ^sd_bus_message) -> c.in
 	result = sd_bus_message_read_basic(message, SD_BUS_TYPE_INT32, &expire_timeout)
 	if result < 0 do return result
 
-	id := replaces_id
-	if id == 0 {
+	summary_text := string(summary)
+	body_text := string(body)
+
+	id: u32
+	index := -1
+
+	if replaces_id != 0 do index = notifications_find(&app.notifications, replaces_id)
+	if index >= 0 {
+		id = replaces_id
+
+		notification := &app.notifications.items[index]
+		notification_set_text(notification, summary_text, body_text)
+		notification_set_timeout(notification, expire_timeout)
+
+		notification_recreate_views(app, notification)
+		notifications_relayout(app)
+
+		for view in notification.views do request_redraw(view)
+	} else {
 		id = app.notifications.next_id
+
 		app.notifications.next_id += 1
 		if app.notifications.next_id == 0 do app.notifications.next_id = 1
+		notification := Notification {
+			id = id,
+		}
+
+		notification_set_text(&notification, summary_text, body_text)
+		notification_set_timeout(&notification, expire_timeout)
+
+		append(&app.notifications.items, notification)
+
+		new_notification := &app.notifications.items[len(app.notifications.items) - 1]
+		notification_create_views(app, new_notification)
+		notifications_relayout(app)
+		for view in new_notification.views do request_redraw(view)
 	}
 
 	if DEBUG {
 		fmt.println("notification:", id)
 		fmt.println("  app:", app_name)
 		fmt.println("  icon:", app_icon)
-		fmt.println("  summary:", summary)
-		fmt.println("  body:", body)
+		fmt.println("  summary:", summary_text)
+		fmt.println("  body:", body_text)
 		fmt.println("  timeout:", expire_timeout)
 	}
 
 	return notifications_reply_id(message, id)
 }
 
-notifications_handle_close :: proc(message: ^sd_bus_message) -> c.int {
+notifications_handle_close :: proc(app: ^App, message: ^sd_bus_message) -> c.int {
 	id: u32
 
 	result := sd_bus_message_read_basic(message, SD_BUS_TYPE_UINT32, &id)
 	if result < 0 do return result
-
 	if DEBUG do fmt.println("notification close:", id)
+
+	index := notifications_find(&app.notifications, id)
+	if index >= 0 {
+		notifications_remove(app, index)
+		notifications_relayout(app)
+		notifications_request_redraw(app)
+	}
+
 	return notifications_reply_empty(message)
 }
 
@@ -162,11 +471,8 @@ notifications_message_handler :: proc "c" (
 	context.user_ptr = app
 
 	if sd_bus_message_is_method_call(message, NOTIFICATIONS_INTERFACE, "Notify") > 0 do return notifications_handle_notify(app, message)
-
-	if sd_bus_message_is_method_call(message, NOTIFICATIONS_INTERFACE, "CloseNotification") > 0 do return notifications_handle_close(message)
-
+	if sd_bus_message_is_method_call(message, NOTIFICATIONS_INTERFACE, "CloseNotification") > 0 do return notifications_handle_close(app, message)
 	if sd_bus_message_is_method_call(message, NOTIFICATIONS_INTERFACE, "GetCapabilities") > 0 do return notifications_reply_capabilities(message)
-
 	if sd_bus_message_is_method_call(message, NOTIFICATIONS_INTERFACE, "GetServerInformation") > 0 do return notifications_reply_server_information(message)
 
 	return 0
@@ -174,10 +480,10 @@ notifications_message_handler :: proc "c" (
 
 notifications_init :: proc(app: ^App) -> bool {
 	state := &app.notifications
+
 	notification_state_init(state)
 
 	result := sd_bus_open_user(&state.bus)
-
 	if result < 0 {
 		fmt.eprintln("Notifications: Failed to open user bus:", result)
 		return false
@@ -241,9 +547,14 @@ notifications_process :: proc(app: ^App) -> bool {
 notifications_destroy :: proc(app: ^App) {
 	state := &app.notifications
 
+	for len(state.items) > 1 do notifications_remove(app, len(state.items) - 1)
 	if state.bus != nil do _ = sd_bus_release_name(state.bus, NOTIFICATIONS_SERVICE)
 	if state.slot != nil do state.slot = sd_bus_slot_unref(state.slot)
 	if state.bus != nil do state.bus = sd_bus_unref(state.bus)
+	if state.items != nil {
+		delete(state.items)
+		state.items = nil
+	}
 	state.fd = posix.FD(-1)
 	state.next_id = 1
 }
