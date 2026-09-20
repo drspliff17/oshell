@@ -11,13 +11,14 @@ import "core:sys/posix"
 HYPR_HDMI_MONITOR :: "HDMI-A-1"
 HYPR_EDP_MONITOR :: "eDP-1"
 HYPR_MONITOR_NAME_CAPACITY :: 128
+HYPR_SUBMAP_NAME_CAPACITY :: 128
 
 Hyprland_State :: struct {
+	submap:                [HYPR_SUBMAP_NAME_CAPACITY]u8,
+	focused_monitor:       [HYPR_MONITOR_NAME_CAPACITY]u8,
 	workspaces:            [dynamic]int,
 	fullscreen_workspaces: [dynamic]int,
-	submap:                [128]u8,
 	submap_len:            int,
-	focused_monitor:       [HYPR_MONITOR_NAME_CAPACITY]u8,
 	focused_monitor_len:   int,
 	active_workspace:      int,
 	hdmi_workspace:        int,
@@ -36,8 +37,8 @@ Hyprland_IPC :: struct {
 }
 
 Hyprctl_Workspace :: struct {
-	id:            int,
 	monitor:       string,
+	id:            int,
 	hasfullscreen: bool,
 }
 
@@ -66,13 +67,7 @@ hyprland_get_submap :: proc(state: ^Hyprland_State) -> string {
 
 hyprland_set_focused_monitor :: proc(state: ^Hyprland_State, monitor: string) {
 	state.focused_monitor_len = min(len(monitor), len(state.focused_monitor))
-
-	if state.focused_monitor_len > 0 {
-		copy(
-			state.focused_monitor[:state.focused_monitor_len],
-			monitor[:state.focused_monitor_len],
-		)
-	}
+	if state.focused_monitor_len > 0 do copy(state.focused_monitor[:state.focused_monitor_len], monitor[:state.focused_monitor_len])
 }
 
 hyprland_get_focused_monitor :: proc(state: ^Hyprland_State) -> string {
@@ -124,7 +119,6 @@ hyprland_has_fullscreen_workspace :: proc(state: ^Hyprland_State, id: int) -> bo
 hyprland_remove_fullscreen_workspace :: proc(state: ^Hyprland_State, id: int) {
 	for workspace, i in state.fullscreen_workspaces {
 		if workspace != id do continue
-
 		ordered_remove(&state.fullscreen_workspaces, i)
 		return
 	}
@@ -147,7 +141,6 @@ hyprland_update_visible_fullscreen :: proc(state: ^Hyprland_State) -> bool {
 
 hyprland_preferred_fullscreen :: proc(app: ^App) -> bool {
 	preferred := app_preferred_output(app)
-
 	if preferred == app.hdmi_output do return app.hypr.state.hdmi_fullscreen
 	if preferred == app.edp_output do return app.hypr.state.edp_fullscreen
 	return false
@@ -239,7 +232,6 @@ hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	}
 
 	// Monitors
-
 	monitor_data, monitor_ok := hyprctl([]string{"-j", "monitors"})
 
 	if !monitor_ok {
@@ -264,7 +256,6 @@ hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	hyprland_update_visible_fullscreen(&ipc.state)
 
 	// Active workspace
-
 	active_data, active_ok := hyprctl([]string{"-j", "activeworkspace"})
 
 	if !active_ok {
@@ -283,7 +274,6 @@ hyprland_load_initial_state :: proc(ipc: ^Hyprland_IPC) -> bool {
 	ipc.state.active_workspace = active.id
 
 	// Submap
-
 	submap_data, submap_ok := hyprctl([]string{"submap"})
 
 	if !submap_ok {
@@ -325,11 +315,9 @@ hyprland_connect :: proc(ipc: ^Hyprland_IPC) -> bool {
 	}
 
 	path_buf: [512]u8
-
 	path := fmt.bprintf(path_buf[:], "%s/hypr/%s/.socket2.sock", runtime_dir, signature)
 
 	fd := posix.socket(.UNIX, .STREAM)
-
 	if fd < 0 {
 		fmt.eprintln("Hyprland IPC: Failed to create socket")
 		return false
