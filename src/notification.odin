@@ -234,12 +234,16 @@ notification_measure_size :: proc(
 	line_metrics := measure_text(measure_layer, "Hg", font_size)
 	line_height := line_metrics.ascent + line_metrics.descent
 
+	max_width, max_height := notification_get_max_size()
+
 	content_width := max(summary_metrics.width, body_metrics.width)
 
-	width := min(content_width + f32(NOTIFICATION_PADDING_X * 2), f32(NOTIFICATION_MAX_WIDTH))
+	width := min(content_width + f32(NOTIFICATION_PADDING_X * 2), max_width)
 	height := line_height + f32(NOTIFICATION_PADDING_Y * 2)
 
 	if body != "" do height = line_height * 2 + f32(NOTIFICATION_TEXT_GAP) + f32(NOTIFICATION_PADDING_Y * 2)
+
+	height = min(height, max_height)
 
 	if width < 1 do width = 1
 	if height < 1 do height = 1

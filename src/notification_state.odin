@@ -57,3 +57,14 @@ notification_get_body :: proc(notification: ^Notification) -> string {
 	if notification.body_len <= 0 do return ""
 	return string(notification.body[:notification.body_len])
 }
+
+notification_get_max_size :: proc() -> (width, height: f32) {
+	a := cast(^App)context.user_ptr
+	w := a.config.notification_max_width
+	h := a.config.notification_max_height
+
+	if w < 64 || w > 1920 do w = NOTIFICATION_MAX_WIDTH
+	if h < 32 || h > 300 do h = NOTIFICATION_MAX_HEIGHT
+
+	return f32(w), f32(h)
+}

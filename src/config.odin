@@ -9,6 +9,8 @@ Config :: struct {
 	excluded_notification_log_appnames: []string,
 	font_filepath:                      string,
 	font_size:                          FT_UInt,
+	notification_max_width:             u32,
+	notification_max_height:            u32,
 	allow_notification_logging:         bool,
 	fullscreen_output_switching:        bool,
 	allow_infinite_marquee:             bool,
